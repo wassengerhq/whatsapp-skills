@@ -54,7 +54,7 @@ npx skills add wassengerhq/wassenger-skills
 | `wassenger-inbox` | Multi-agent inbox: statuses, assignment, labels, departments. |
 | `wassenger-campaigns` | Bulk broadcasts: segmentation, scheduling, delivery tracking. |
 | `wassenger-webhooks` | Subscribe to real-time events with HMAC signature verification and retries. |
-| `wassenger-contacts-groups` | Contacts, groups, channels — sync, filter, manage. |
+| `wassenger-contacts` | CSV import, CRM sync, segmentation, export, phone validation. |
 
 ### Industries (7) — outcome-focused recipes
 

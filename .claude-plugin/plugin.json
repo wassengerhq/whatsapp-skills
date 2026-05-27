@@ -31,7 +31,7 @@
     { "name": "wassenger-inbox", "path": "skills/wassenger-inbox", "category": "capability" },
     { "name": "wassenger-campaigns", "path": "skills/wassenger-campaigns", "category": "capability" },
     { "name": "wassenger-webhooks", "path": "skills/wassenger-webhooks", "category": "capability" },
-    { "name": "wassenger-contacts-groups", "path": "skills/wassenger-contacts-groups", "category": "capability" },
+    { "name": "wassenger-contacts", "path": "skills/wassenger-contacts", "category": "capability" },
     { "name": "wassenger-ecommerce", "path": "skills/wassenger-ecommerce", "category": "industry", "vertical": "ecommerce" },
     { "name": "wassenger-sales-bot", "path": "skills/wassenger-sales-bot", "category": "industry", "vertical": "sales" },
     { "name": "wassenger-customer-support", "path": "skills/wassenger-customer-support", "category": "industry", "vertical": "customer-support" },

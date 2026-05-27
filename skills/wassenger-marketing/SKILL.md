@@ -206,6 +206,6 @@ Anything below half of target = template / segment / timing problem. Stop and it
 - `wassenger-campaigns` — the capability under all these recipes (audience build, scheduling, stats, opt-out flow).
 - `wassenger-messaging` — template / media construction details.
 - `wassenger-webhooks` — driving opt-out enforcement and reply-based loops.
-- `wassenger-contacts-groups` — managing the audience database.
+- `wassenger-contacts` — managing the audience database.
 - Wassenger marketing playbook: https://wassenger.com/blog/maximize-your-marketing-with-wassenger-campaigns
 - n8n marketing automation: https://github.com/wassengerhq/n8n-wassenger

@@ -182,5 +182,5 @@ on booking.completed (customer ate at venue):
 - `wassenger-messaging` — templates with buttons, media, scheduled sends.
 - `wassenger-webhooks` — for POS / booking system event ingestion.
 - `wassenger-campaigns` — dormant-customer re-engagement at scale.
-- `wassenger-contacts-groups` — managing the customer database + segmentation.
+- `wassenger-contacts` — managing the customer database + segmentation.
 - Reference implementation (full bot): https://github.com/wassengerhq/whatsapp-chatgpt-bot-restaurant
