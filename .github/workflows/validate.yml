@@ -1,0 +1,56 @@
+name: Validate Agent Skills
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: List skills
+        run: |
+          if [ -d skills ]; then
+            ls -la skills/
+          else
+            echo "No skills/ directory yet (bootstrap phase)."
+          fi
+
+      - name: Validate Agent Skills format
+        run: |
+          # Validator from https://github.com/agentskills/agentskills
+          # Enabled once the skills-ref CLI is published to npm.
+          if command -v skills-ref >/dev/null 2>&1; then
+            skills-ref validate ./skills/*
+          else
+            echo "skills-ref not yet on npm — skipping. Tracked in issue #1."
+          fi
+
+      - name: Lint frontmatter (fallback)
+        run: |
+          # Minimal sanity check: every skill must have a SKILL.md with name + description.
+          if [ -d skills ]; then
+            for dir in skills/*/; do
+              if [ ! -f "${dir}SKILL.md" ]; then
+                echo "::error::Missing SKILL.md in ${dir}"
+                exit 1
+              fi
+              if ! grep -q "^name:" "${dir}SKILL.md"; then
+                echo "::error::Missing 'name:' frontmatter in ${dir}SKILL.md"
+                exit 1
+              fi
+              if ! grep -q "^description:" "${dir}SKILL.md"; then
+                echo "::error::Missing 'description:' frontmatter in ${dir}SKILL.md"
+                exit 1
+              fi
+            done
+            echo "✓ All skills have valid frontmatter."
+          fi
