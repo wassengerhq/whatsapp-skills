@@ -24,7 +24,7 @@ npx @wassengerhq/skills init
 
 The CLI will:
 
-1. Ask for your Wassenger API key (get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/api-keys)).
+1. Ask for your Wassenger API key (get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=readme)).
 2. Validate it against the Wassenger API.
 3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 19 skills into the right directory.
 4. Register the Wassenger MCP server so your agent can call WhatsApp tools immediately.

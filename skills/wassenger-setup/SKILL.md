@@ -33,7 +33,7 @@ If the user already has the MCP working and just wants to send a message, route 
 
 ## Step 1 — Get an API key
 
-Direct the user to https://app.wassenger.com/developers/api-keys.
+Direct the user to https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=skill_setup.
 
 - If they have no account: create one at https://app.wassenger.com.
 - Click "Create API key", copy the value (30-200 characters, starts with random hex).
@@ -145,7 +145,7 @@ Once setup works, route the user to the skill that matches their goal:
 
 ## Reference links
 
-- API keys console: https://app.wassenger.com/developers/api-keys
+- API keys console: https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=skill_setup
 - Devices console: https://app.wassenger.com/devices
 - Full API reference: https://app.wassenger.com/docs
 - MCP server source: https://github.com/wassengerhq/mcp-wassenger

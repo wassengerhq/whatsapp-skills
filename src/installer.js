@@ -22,7 +22,7 @@ export async function init ({ interactive = true } = {}) {
 
   let apiKey = process.env.WASSENGER_API_KEY
   if (!apiKey && interactive) {
-    console.log(`Get an API key at ${s('cyan', 'https://app.wassenger.com/developers/api-keys')}\n`)
+    console.log(`Get an API key at ${s('cyan', 'https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=cli')}\n`)
     apiKey = await ask('Paste your Wassenger API key:')
   }
   if (!apiKey) {
