@@ -45,14 +45,6 @@ export async function init ({ interactive = true } = {}) {
   for (const a of agents) console.log(`  ${s('green', '✓')} ${a.label} ${s('dim', `(${a.path})`)}`)
   console.log()
 
-  process.stdout.write('Installing skills... ')
-  const installed = await copySkillsToAgents(agents)
-  console.log(s('green', `✓ (${installed} skills × ${agents.length} agent(s))`))
-
-  process.stdout.write('Registering Wassenger MCP server... ')
-  for (const agent of agents) await writeMcpConfig(agent, apiKey)
-  console.log(s('green', '✓'))
-
   process.stdout.write('Refreshing API surface (live OpenAPI)... ')
   try {
     await refreshApiSurface(apiKey, SKILLS_DIR)
@@ -60,6 +52,14 @@ export async function init ({ interactive = true } = {}) {
   } catch (e) {
     console.log(s('yellow', `skipped (${e.message})`))
   }
+
+  process.stdout.write('Installing skills... ')
+  const installed = await copySkillsToAgents(agents)
+  console.log(s('green', `✓ (${installed} skills × ${agents.length} agent(s))`))
+
+  process.stdout.write('Registering Wassenger MCP server... ')
+  for (const agent of agents) await writeMcpConfig(agent, apiKey)
+  console.log(s('green', '✓'))
 
   console.log(`\n${s('green', '✓ Done.')} Restart your agent for the changes to take effect.`)
   console.log(`\nTry asking it: ${s('cyan', '"List the WhatsApp devices in my Wassenger account."')}\n`)

@@ -1,0 +1,78 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Validate skill frontmatter
+        run: |
+          set -e
+          for dir in skills/*/; do
+            name=$(basename "$dir")
+            file="${dir}SKILL.md"
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing SKILL.md in $dir"; exit 1
+            fi
+            if ! grep -q "^name: $name$" "$file"; then
+              echo "::error::name in $file does not match directory ($name)"; exit 1
+            fi
+            if ! grep -q "^description:" "$file"; then
+              echo "::error::Missing description: in $file"; exit 1
+            fi
+            desc_len=$(grep "^description:" "$file" | sed 's/^description: //' | wc -c | tr -d ' ')
+            if [ "$desc_len" -gt 1024 ]; then
+              echo "::error::description in $file is $desc_len chars (max 1024)"; exit 1
+            fi
+          done
+          echo "✓ All $(ls -d skills/*/ | wc -l | tr -d ' ') skills validate."
+
+      - name: Smoke-test CLI
+        run: |
+          set -e
+          node --check bin/wassenger-skills.js
+          node --check src/installer.js
+          node --check src/api-validate.js
+          node --check src/mcp-config.js
+          node --check src/auto-discover.js
+          node bin/wassenger-skills.js --version
+          node bin/wassenger-skills.js help > /dev/null
+          node bin/wassenger-skills.js list > /dev/null
+          echo "✓ CLI smoke tests pass."
+
+      - name: Verify package version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "✓ Version $PKG_VERSION matches tag."
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          name: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}

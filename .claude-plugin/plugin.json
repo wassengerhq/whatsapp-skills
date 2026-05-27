@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/claude-plugin.json",
+  "name": "wassenger-skills",
+  "version": "0.1.0",
+  "description": "Agent Skills for Wassenger — automate WhatsApp Business (orders, leads, support, campaigns, real estate, restaurants, logistics, marketing) by chatting with Claude. Bundles 14 skills + the official Wassenger MCP server.",
+  "author": {
+    "name": "Wassenger",
+    "url": "https://wassenger.com",
+    "email": "support@wassenger.com"
+  },
+  "homepage": "https://github.com/wassengerhq/wassenger-skills",
+  "repository": "https://github.com/wassengerhq/wassenger-skills",
+  "license": "MIT",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-business",
+    "wassenger",
+    "mcp",
+    "agent-skills",
+    "automation",
+    "chatbot",
+    "customer-service",
+    "sales",
+    "ecommerce",
+    "marketing"
+  ],
+  "skills": [
+    { "name": "wassenger-setup", "path": "skills/wassenger-setup", "category": "setup" },
+    { "name": "wassenger-mcp", "path": "skills/wassenger-mcp", "category": "setup" },
+    { "name": "wassenger-messaging", "path": "skills/wassenger-messaging", "category": "capability" },
+    { "name": "wassenger-inbox", "path": "skills/wassenger-inbox", "category": "capability" },
+    { "name": "wassenger-campaigns", "path": "skills/wassenger-campaigns", "category": "capability" },
+    { "name": "wassenger-webhooks", "path": "skills/wassenger-webhooks", "category": "capability" },
+    { "name": "wassenger-contacts-groups", "path": "skills/wassenger-contacts-groups", "category": "capability" },
+    { "name": "wassenger-ecommerce", "path": "skills/wassenger-ecommerce", "category": "industry", "vertical": "ecommerce" },
+    { "name": "wassenger-sales-bot", "path": "skills/wassenger-sales-bot", "category": "industry", "vertical": "sales" },
+    { "name": "wassenger-customer-support", "path": "skills/wassenger-customer-support", "category": "industry", "vertical": "customer-support" },
+    { "name": "wassenger-real-estate", "path": "skills/wassenger-real-estate", "category": "industry", "vertical": "real-estate" },
+    { "name": "wassenger-restaurants", "path": "skills/wassenger-restaurants", "category": "industry", "vertical": "restaurants" },
+    { "name": "wassenger-logistics", "path": "skills/wassenger-logistics", "category": "industry", "vertical": "logistics" },
+    { "name": "wassenger-marketing", "path": "skills/wassenger-marketing", "category": "industry", "vertical": "marketing" }
+  ],
+  "mcpServers": {
+    "wassenger": {
+      "command": "npx",
+      "args": ["-y", "@wassengerhq/mcp-wassenger"],
+      "env": {
+        "WASSENGER_API_KEY": "${WASSENGER_API_KEY}"
+      }
+    }
+  },
+  "postInstall": {
+    "message": "Wassenger Skills installed. Set WASSENGER_API_KEY in your environment, then ask your agent: 'List the WhatsApp devices in my Wassenger account.' Get an API key at https://app.wassenger.com/developers/api-keys"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-marketplace.json",
+  "name": "wassengerhq",
+  "displayName": "Wassenger",
+  "description": "Official plugins from Wassenger for automating WhatsApp Business with AI agents.",
+  "homepage": "https://wassenger.com",
+  "owner": {
+    "name": "Wassenger",
+    "url": "https://wassenger.com",
+    "github": "wassengerhq"
+  },
+  "plugins": [
+    {
+      "name": "wassenger-skills",
+      "displayName": "Wassenger Skills",
+      "description": "14 Agent Skills for automating WhatsApp Business — onboarding, messaging, multi-agent inbox, campaigns, webhooks, contacts and groups, plus 7 industry recipes (e-commerce, sales, customer support, real estate, restaurants, logistics, marketing).",
+      "source": "github:wassengerhq/wassenger-skills",
+      "version": "0.1.0",
+      "license": "MIT",
+      "homepage": "https://github.com/wassengerhq/wassenger-skills",
+      "tags": [
+        "whatsapp",
+        "whatsapp-business",
+        "wassenger",
+        "mcp",
+        "agent-skills",
+        "automation",
+        "customer-service",
+        "sales",
+        "ecommerce",
+        "marketing",
+        "logistics",
+        "real-estate",
+        "restaurants"
+      ],
+      "categories": ["communication", "customer-service", "automation"],
+      "requires": {
+        "node": ">=18",
+        "mcpServers": ["@wassengerhq/mcp-wassenger"]
+      }
+    }
+  ]
+}
