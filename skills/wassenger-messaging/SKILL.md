@@ -1,6 +1,6 @@
 ---
 name: wassenger-messaging
-description: Send WhatsApp messages with Wassenger — text, images, video, audio, documents, locations, contact cards, polls, scheduled, expiring, and agent-attributed messages. Use when the user wants to send any kind of message via WhatsApp through their connected Wassenger device. Bakes in the 24-hour customer service window and the pre-approved template flow for official WABA numbers, so the agent picks the right mode automatically.
+description: Send WhatsApp messages with Wassenger on the official WhatsApp Business API — text, images, video, audio, documents, locations, contact cards, polls, scheduled, and agent-attributed messages. Use when the user wants to send any kind of message via WhatsApp through their connected WABA device. Bakes in the 24-hour customer service window and the pre-approved template flow so the agent picks free-form vs template automatically.
 license: MIT
 metadata:
   author: Wassenger
@@ -16,7 +16,7 @@ Send any kind of WhatsApp message through Wassenger — the agent picks free-for
 ## When to use
 
 - The user asks to send a message, reminder, confirmation, notification, or alert to a WhatsApp number.
-- The user wants to schedule a message for later, set an expiration on it, or send a poll.
+- The user wants to schedule a message for later or send a poll.
 - The user asks "how do I send a template?" or hits a 24-hour-window error from another skill.
 - A higher-level industry skill (`wassenger-ecommerce`, `wassenger-restaurants`, …) calls down here for the actual send.
 
@@ -34,16 +34,16 @@ Every send falls into one of two modes:
 
 | Mode | When it applies | Tool to call |
 |---|---|---|
-| **Free-form** | The recipient sent a message to this device in the last 24 hours, **or** the device is QR-paired (consumer WhatsApp, not WABA). | `send_whatsapp_message` with `message` / `media` / `poll` / etc. |
-| **Template** | The device is on WABA **and** the last inbound message is older than 24 hours **or** no prior conversation exists. | `send_whatsapp_message` with `template: { name, language, components }`. |
+| **Free-form** | The recipient sent a message to this device in the last 24 hours. | `send_whatsapp_message` with `message` / `media` / `poll` / etc. |
+| **Template** | The last inbound message is older than 24 hours, **or** no prior conversation exists. | `send_whatsapp_message` with `template: { name, language, components }`. |
 
 **Decision flow:**
 
 1. Get the chat: `get_whatsapp_chat_by_id` (or fall back to `search_whatsapp_chats_by_name`).
-2. Inspect `chat.lastInboundAt`. If absent or `> 24 h ago` **and** device is WABA → use a template.
+2. Inspect `chat.lastInboundAt`. If absent or `> 24 h ago` → use a template.
 3. Otherwise → free-form.
 
-For WABA, list approved templates with `list_whatsapp_templates` before sending — only templates with `status: APPROVED` work, and you must match the `language` of the template (e.g., `es`, `en_US`, `pt_BR`).
+List approved templates with `list_whatsapp_templates` before sending — only templates with `status: APPROVED` work, and you must match the `language` of the template (e.g., `es`, `en_US`, `pt_BR`).
 
 ## Recipes
 
@@ -127,19 +127,19 @@ Wassenger queues the message and dispatches it at the requested time. Use `manag
 
 ### Recipe 5 — Send a poll
 
-> "Ask my team which day for the offsite — Friday, Saturday or Sunday."
+> "Ask my customer Marta which day works better — Friday, Saturday or Sunday."
 
 ```
 send_whatsapp_message
   - device: <id>
-  - phone: <group.wid>
+  - phone: "+34600111222"
   - poll:
-      name: "Which day for the offsite?"
+      name: "Which day works for you?"
       options: ["Friday", "Saturday", "Sunday"]
       selectableCount: 1
 ```
 
-Polls only work in chats (1:1 and groups), not in channels. Read poll results later with `get_whatsapp_chat_messages` filtered by `messageType=poll`.
+Polls are supported on the WABA Cloud API. Read poll results later with `get_whatsapp_chat_messages` filtered by `messageType=poll`. Confirm your device is on a Cloud-API-compatible plan if polls don't appear — older WABA on-premise hosting may not support them.
 
 ### Recipe 6 — Reply / react / forward
 
@@ -153,30 +153,16 @@ Polls only work in chats (1:1 and groups), not in channels. Read poll results la
    - emoji: "👍"
 ```
 
-Other operations: `reply` (threaded reply with `replyTo`), `forward` (to another chat), `star`, `unstar`, `delete-for-me`, `delete-for-all`.
-
-### Recipe 7 — Expiring / live message
-
-> "Send my live location for the next 30 minutes."
-
-```
-send_whatsapp_message
-  - device: <id>
-  - phone: <phone>
-  - location: { latitude: 40.4168, longitude: -3.7038, live: true }
-  - expiration: 1800   # seconds
-```
-
-`expiration` works on any free-form message (text, media). Useful for time-sensitive offers ("show this to the cashier in the next 10 min").
+Other operations: `reply` (threaded reply with `replyTo`), `forward` (to another chat), `delete-for-me`, `delete-for-all`.
 
 ## Common pitfalls
 
-- **Sending free-form on WABA outside 24 h.** Returns `131047` from Meta. Switch to a template or wait for the customer to reply first.
+- **Sending free-form outside 24 h.** Returns `131047` from Meta. Switch to a template or wait for the customer to reply first.
 - **Template variables out of order.** `{{1}}` in the template == `parameters[0]` in the call. Off-by-one will deliver gibberish.
 - **Forgetting `device`.** Defaults to nothing — the API rejects with `400`. Always pass.
 - **Wrong number format.** Use E.164 (`+34600111222`), no spaces. The MCP also accepts chat WIDs (`34600111222@c.us`) but E.164 is safer.
 - **Media URL not reachable.** Wassenger fetches the URL server-side. If it returns 403/404 or requires auth, upload via `upload_whatsapp_file_from_url` after first making it public, or proxy through your own server.
-- **Group sends without participating.** You cannot send to a group the device is not in. Add it first via `manage_whatsapp_group_participants` if you control the group.
+- **Marketing copy in a Utility template.** Meta categorizes templates at approval time. Sending marketing through a Utility template gets the template (and potentially the WABA) suspended on review. Use the right category from the start.
 
 ## See also
 

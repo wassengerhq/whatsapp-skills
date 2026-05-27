@@ -1,6 +1,6 @@
 ---
 name: wassenger-mcp
-description: Reference for the Wassenger Model Context Protocol (MCP) server. Use when the agent needs to choose which Wassenger tool to call, understand parameter shapes, or troubleshoot tool errors. Covers the 17 tool modules — messaging, chats, chat-messages, campaigns, contacts, groups, channels, templates, devices, files, team, departments, labels, queue, numbers, status, ping. The detailed per-tool catalog lives in references/tools-reference.md and loads on demand.
+description: Reference for the Wassenger Model Context Protocol (MCP) server, scoped to the official WhatsApp Business API (WABA). Use when the agent needs to choose which Wassenger tool to call, understand parameter shapes, or troubleshoot tool errors. Covers the WABA-supported tool modules — messaging, templates, chats, chat-messages, labels, contacts, team, departments, queue, campaigns, devices, files, numbers, ping. The detailed per-tool catalog lives in references/tools-reference.md and loads on demand.
 license: MIT
 metadata:
   author: Wassenger
@@ -30,15 +30,16 @@ If the user has not yet installed the MCP server, route to `wassenger-setup` fir
 - The MCP server registered in the agent's config under the name `wassenger`.
 - A device connected (`status: ready`) — many tools take a `device` parameter.
 
-## Tool catalog (17 modules)
+## Tool catalog (14 modules)
 
 Each module groups related tools. Names below are the **canonical category** — the actual tool names within a module follow the pattern `<verb>_whatsapp_<entity>` (`get_whatsapp_chats`, `send_whatsapp_message`, etc.). The exhaustive list with signatures lives in [references/tools-reference.md](references/tools-reference.md).
 
+> The Wassenger MCP also exposes modules that only work on legacy QR-paired devices (WhatsApp Status updates, group management, channel management, live messages). They are **omitted from this catalog** because this pack targets the official WABA only — see `wassenger-setup` for the rationale.
+
 ### Messaging
 
-- **messages** — send text, media, location, contact card, poll, scheduled, expiring, live, agent-attributed messages.
+- **messages** — send text, media, location, contact card, poll, scheduled, agent-attributed messages.
 - **templates** — list approved WABA templates, send a template, manage variables.
-- **user-status** — publish, schedule, and read WhatsApp "Status" updates.
 
 ### Conversations
 
@@ -48,9 +49,7 @@ Each module groups related tools. Names below are the **canonical category** —
 
 ### Audience
 
-- **contacts** — list, search, export, get details.
-- **groups** — create, update, manage participants, get invite link, join, leave.
-- **channels** — list, create, search, join, leave, manage channel messages.
+- **contacts** — list, search, import (CSV), export, segment, get details.
 
 ### Multi-agent inbox
 
@@ -73,8 +72,8 @@ Each module groups related tools. Names below are the **canonical category** —
 
 When deciding which tool to call, walk down this short decision tree:
 
-1. **Is the user asking to send something?** → `messaging` (text/media) or `templates` (WABA template) or `campaigns` (bulk).
-2. **Is the user asking to read something?** → `chats` (chat list/metadata) or `chat-messages` (message history) or `contacts`/`groups`/`channels`.
+1. **Is the user asking to send something?** → `messages` (text/media inside the 24h window) or `templates` (WABA template outside the window) or `campaigns` (bulk).
+2. **Is the user asking to read something?** → `chats` (chat list/metadata) or `chat-messages` (message history) or `contacts` (audience).
 3. **Is the user asking to organize things?** → `labels` (tag chats), `team`/`departments` (assignment), `queue` (control delivery).
 4. **Is the user asking about the account itself?** → `devices` (numbers connected), `ping` (health), `files` (media storage), `numbers` (validate a phone).
 
@@ -84,8 +83,9 @@ Always prefer the **most specific** tool. For example, when the user says "show 
 
 - **24-hour customer service window.** On WABA numbers, free-form messages are only allowed within 24 h of the contact's last inbound message. Outside that window, you must send a pre-approved **template** via the `templates` module. Always check `chat.lastInboundAt` before sending a free-form message — if older than 24 h, switch to a template.
 - **Templates are pre-approved per language.** Listing them with `list_whatsapp_templates` shows status `APPROVED` / `PENDING` / `REJECTED`. Only `APPROVED` ones can be sent.
-- **Group / channel features on WABA.** Official WABA numbers do **not** support groups, channels, or communities — those tools only work on QR-paired devices.
-- **Rate limits.** Heavy outbound traffic (campaigns, broadcasts) is paced by the Wassenger queue. Use `queue` tools to monitor and `campaigns` (not loop-sending) for any audience over ~50 contacts.
+- **No groups / channels / WhatsApp Status on WABA.** Official WABA numbers do not support those features. If a recipe seems to need a "group", redesign it around 1:1 chats, a broadcast campaign, or a different communication channel for internal coordination.
+- **Conversation tiers.** WABA paces outbound by the device's daily conversation tier (250 / 1000 / 10000 / unlimited unique users per 24 h). Check via `get_whatsapp_device_details` before large sends.
+- **Rate limits.** Heavy outbound traffic is paced by the Wassenger queue. Use `queue` tools to monitor and `campaigns` (not loop-sending) for any audience over ~50 contacts.
 - **Media must be uploaded first** (or referenced by URL). For local files, call `upload_whatsapp_file_from_url` (or the upload-file flow), grab the returned `file.id`, then attach it to a `send_whatsapp_message` call.
 - **Always supply `device`.** Almost every tool needs `device` (the device ID). If the user has only one device, fetch it once via `get_whatsapp_devices` and reuse the ID. If they have multiple, ask.
 

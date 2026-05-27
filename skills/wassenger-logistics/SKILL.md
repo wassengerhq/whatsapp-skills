@@ -16,10 +16,9 @@ Coordinate the three parties of every delivery — dispatcher, driver, recipient
 
 ## When to use
 
-- The user mentions **logistics**, **delivery**, **courier**, **dispatch**, **fleet**, **last-mile**, **trucking**, **3PL**, **driver app**.
+- The user mentions **logistics**, **delivery**, **courier**, **dispatch**, **fleet**, **last-mile**, **trucking**, **3PL**.
 - They want **tracking updates** to recipients without building a customer portal.
 - They need **proof of delivery** (POD) on phone with photo + signature + code.
-- They want to coordinate **drivers in the field** with WhatsApp instead of phone calls / radio.
 - They handle **failed deliveries** and want to automate the **reschedule** conversation.
 
 For pure customer support after a delivery problem, see `wassenger-customer-support`. For e-commerce order tracking from the merchant side, see `wassenger-ecommerce`.
@@ -28,8 +27,8 @@ For pure customer support after a delivery problem, see `wassenger-customer-supp
 
 - `wassenger-setup` complete.
 - A list of deliveries with: recipient phone, address, time window, driver, tracking number.
-- For drivers: each driver should have their own chat with the dispatch device (or be in a coordination group).
-- For WABA: templates for `delivery_dispatched`, `delivery_out_for_delivery`, `delivery_eta_update`, `delivery_arrived`, `delivery_failed`, `reschedule_request`.
+- Pre-approved WABA templates for `delivery_dispatched`, `delivery_out_for_delivery`, `delivery_eta_update`, `delivery_arrived`, `delivery_failed`, `reschedule_request`.
+- For **internal driver coordination**, use a separate tool (Telegram, Signal, your own driver app). WABA does not support WhatsApp groups, so it is not the right channel for dispatcher↔driver chatter. This skill stays focused on the dispatcher↔recipient leg.
 
 ## Recipes
 
@@ -83,8 +82,8 @@ on driver.arrived_at_stop:
      ESPERA 5 — necesito 5 minutos
      NO ESTOY — no estoy en casa"
 
-  if reply "ESPERA 5": send_whatsapp_message to driver group:
-    "Stop #{{stopNumber}}: cliente pide 5 min de espera"
+  if reply "ESPERA 5": notify the driver via your internal channel
+    (Telegram / Signal / driver app): "Stop #{{stopNumber}}: cliente pide 5 min de espera"
 
   if reply "NO ESTOY": trigger failed-delivery flow (Recipe 5)
 ```
@@ -128,34 +127,7 @@ on shipment.failed (driver couldn't deliver):
 
 Cap reschedules at **2 per shipment**. After that, escalate to a human dispatcher.
 
-### Recipe 6 — Driver coordination
-
-Drivers need real-time dispatch updates. Set up a WhatsApp group or 1:1 chat per driver:
-
-```
-on route.assigned:
-  send_whatsapp_message to driver.chat:
-    - message: "📦 Ruta de hoy: {{stopCount}} paradas, total ~{{distance}}km, ETA fin {{finishEta}}"
-    - media: { url: route.gpxOrPdfUrl }
-
-on stop.updated (recipient changed window, address, etc.):
-  send_whatsapp_message to driver.chat:
-    "Stop #{{stopNum}} actualizado:
-     {{summary_of_change}}"
-
-on stop.urgent_message_from_recipient:
-  forward to driver.chat with stop reference
-```
-
-Drivers reply with status: "ENTREGADO 5", "FALLO 12 — nadie en casa", "RETRASO TRAFICO".
-
-```
-on driver replies parseable status:
-  update_TMS(parsed)
-  on entregado: trigger Recipe 4 (POD request to driver if not already done)
-```
-
-### Recipe 7 — Recipient instructions (the "buzz code" problem)
+### Recipe 6 — Recipient instructions (the "buzz code" problem)
 
 A huge % of failed deliveries are missing buzz codes, gate codes, or specific instructions.
 
@@ -164,7 +136,7 @@ on shipment.dispatched:
   if !recipient.address_notes:
     ask: "¿Hay algo que el repartidor deba saber? (código portal, piso, instrucciones)"
     save reply on shipment.address_notes
-    forward to driver group when route is built
+    pass to the driver via your internal channel (Telegram / driver app) when the route is built
 ```
 
 This one recipe alone reduces failed deliveries by 10-20% in urban areas.
@@ -173,7 +145,7 @@ This one recipe alone reduces failed deliveries by 10-20% in urban areas.
 
 - **Notification flood.** Every 5 minutes ≠ helpful. Notify only on dispatch, out-for-delivery, material ETA changes, arrival, and completion.
 - **No bidirectional channel.** Sending tracking but not letting the recipient reply / reschedule = same as a useless email. Always include buttons or instructions to reply.
-- **Driver context-switching to a different app.** If you make drivers leave WhatsApp to update your TMS, they won't. Build the integration the other way: parse driver replies, update TMS.
+- **Mixing dispatcher↔driver coordination into the recipient WABA.** Drivers belong on a separate channel (Telegram / Signal / internal driver app). Using the same WABA device for both blurs reporting, eats quota, and produces a confused inbox.
 - **POD without timestamp + GPS.** Disputes are won by metadata, not the photo. Save everything.
 - **Reusing the same template for dispatch / out-for-delivery / arrived.** Each phase needs a distinct template. Recipients tune out repetitive messages.
 - **No human escalation for chronic failures.** After 2 failed attempts, a human must call. Don't loop the bot.
@@ -182,6 +154,6 @@ This one recipe alone reduces failed deliveries by 10-20% in urban areas.
 
 - `wassenger-messaging` — templates with buttons, media for POD photos.
 - `wassenger-webhooks` — ingest TMS / carrier events to trigger these recipes.
-- `wassenger-contacts-groups` — driver groups, dispatch group.
+- `wassenger-contacts` — managing the recipient database.
 - `wassenger-customer-support` — for the post-failed-delivery support cases.
 - `wassenger-ecommerce` — the merchant-side counterpart (Recipe 3 in that skill).

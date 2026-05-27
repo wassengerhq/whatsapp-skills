@@ -2,6 +2,8 @@
 
 Detailed catalog of every tool category exposed by the [`@wassengerhq/mcp-wassenger`](https://github.com/wassengerhq/mcp-wassenger) server. This file is loaded **on demand** by `wassenger-mcp/SKILL.md` when the agent needs precise tool names, parameter shapes, or per-tool example prompts.
 
+**Scope: official WhatsApp Business API (WABA) only.** The Wassenger MCP also exposes tools for QR-paired (legacy consumer WhatsApp) devices — group / channel / WhatsApp Status / live messages — but those are intentionally omitted here. This pack does not document or support them.
+
 > **Authoritative source.** Tool names and shapes can change between MCP versions. When in doubt, check the live MCP repo's README, or run `ping` to discover the active version.
 
 ---
@@ -10,20 +12,21 @@ Detailed catalog of every tool category exposed by the [`@wassengerhq/mcp-wassen
 
 ### `send_whatsapp_message`
 
-Send any outbound message (text, media, location, contact card, poll, scheduled, expiring, live, agent-attributed).
+Send any outbound message (text, media, location, contact card, poll, scheduled, agent-attributed). For WABA outside the 24-hour customer service window, pass a `template` payload instead of `message`.
 
 | Parameter | Type | Notes |
 |---|---|---|
 | `device` | string | Device ID from `get_whatsapp_devices`. Required. |
 | `phone` | string | E.164 (+34600111222) or chat WID. Required. |
-| `message` | string | Plain text. Omit for media-only messages. |
+| `message` | string | Plain text. Omit for media-only or template messages. |
 | `media` | object | `{ file: <fileId> }` or `{ url: <publicUrl> }`. |
+| `caption` | string | Caption for media messages. |
 | `location` | object | `{ latitude, longitude, name?, address? }`. |
+| `contactCard` | object | vCard contact share. |
 | `poll` | object | `{ name, options: [...], selectableCount? }`. |
+| `template` | object | `{ name, language, components }` — use when outside the 24h window. |
 | `deliverAt` | ISO date | Schedule for later delivery. |
-| `expiration` | seconds | Auto-delete (live messages). |
-| `replyTo` | string | Message ID to reply to. |
-| `mentions` | string[] | WIDs to mention (groups only). |
+| `replyTo` | string | Message ID to reply to (threaded reply). |
 | `quoted` | object | Quote another message by id. |
 
 **Example prompts:**
@@ -31,10 +34,11 @@ Send any outbound message (text, media, location, contact card, poll, scheduled,
 - "Send 'Your order #1234 is ready for pickup' to +44 7700 900111 from device <id>."
 - "Reply to message <msgId> with a thumbs-up reaction."
 - "Schedule 'Don't forget our meeting tomorrow' to be sent at 9am to +1 555 0100."
+- "Send the `reservation_reminder` template in Spanish to +34 600 111 222 with name=Marta, time=20:00."
 
 ### `list_whatsapp_templates`
 
-List WABA message templates for a device, filtered by status.
+List WABA message templates for a device, filtered by status / language / category.
 
 | Parameter | Type | Notes |
 |---|---|---|
@@ -48,17 +52,11 @@ List WABA message templates for a device, filtered by status.
 - "Show me all approved English templates on my Wassenger account."
 - "List utility templates available for our Brazilian Portuguese number."
 
-### `manage_whatsapp_status`
-
-Publish, schedule, list, or delete WhatsApp "Status" updates.
-
-**Operations:** `publish`, `schedule`, `list`, `delete`, `view-stats`.
-
 ### `manage_whatsapp_message_interactions`
 
-Reactions, replies, forwarding, starring, deleting messages.
+Reactions, replies, forwarding, deleting messages. WABA-supported operations only.
 
-**Operations:** `react`, `reply`, `forward`, `star`, `unstar`, `delete-for-me`, `delete-for-all`.
+**Operations:** `react`, `reply`, `forward`, `delete-for-me`, `delete-for-all`.
 
 ---
 
@@ -101,7 +99,7 @@ Filter by chat status.
 
 ### `get_whatsapp_chats_by_contact_type`
 
-Filter by who is on the other side: `contact`, `group`, `channel`, `business`.
+Filter by who is on the other side. On WABA the meaningful values are `contact` (an individual customer) and `business` (another WhatsApp Business account).
 
 ### `get_whatsapp_chats_by_date_range`
 
@@ -116,7 +114,7 @@ Substring search over contact name or chat title.
 
 ### `get_whatsapp_chat_by_id`
 
-Full chat record by chat WID.
+Full chat record by chat WID. Includes `lastInboundAt` — the field you need to check before sending free-form on WABA.
 
 ### `get_whatsapp_chat_statistics`
 
@@ -149,7 +147,7 @@ Bulk analysis across multiple chats. Use sparingly — expensive.
 
 ---
 
-## Audience
+## Devices & contacts
 
 ### `get_whatsapp_devices`
 
@@ -157,27 +155,11 @@ List all devices. Use the result to pick the `device` ID for other tools.
 
 ### `get_whatsapp_device_details`
 
-Single-device full record (status, phone, plan, session metadata).
+Single-device full record (status, phone, plan, current WABA conversation tier, session metadata).
 
 ### Contacts
 
-Tools: `get_contacts` (list), `search_contacts`, `get_contact_details`, `export_contacts` (CSV).
-
-### `manage_whatsapp_groups`
-
-Create / update / get / delete a WhatsApp group. Operations: `create`, `update`, `info`, `delete`, `join`, `leave`, `get-invite-link`, `revoke-invite-link`.
-
-### `manage_whatsapp_group_participants`
-
-Add, remove, promote, or demote group participants.
-
-### `manage_whatsapp_channels`
-
-Create, list, search, join, leave channels. **Channels are not available on official WABA numbers.**
-
-### `manage_whatsapp_channel_messages`
-
-Send and manage messages inside a channel.
+Tools: `get_contacts` (list), `search_contacts`, `get_contact_details`, `export_contacts` (CSV), import via the campaign module (`manage_whatsapp_campaign_contacts`). See `wassenger-contacts` for the recipes.
 
 ---
 
@@ -230,6 +212,7 @@ Inspect and control the outbound queue.
 | `stop` | Stop a running campaign |
 | `delete` | Remove a campaign |
 | `stats` | Delivered / read / replied counts |
+| `results` | Per-recipient delivery detail |
 
 ### `manage_whatsapp_campaign_contacts`
 
@@ -302,12 +285,13 @@ Returns MCP version, API connectivity, and active device count. Use as the first
 
 1. `get_whatsapp_devices` → pick a `ready` device.
 2. (Optional) `verifyWhatsAppNumberExists` for an unknown contact.
-3. `send_whatsapp_message` with `device`, `phone`, `message`.
+3. `get_whatsapp_chat_by_id` → check `lastInboundAt` (decides free-form vs template).
+4. `send_whatsapp_message` with `device`, `phone`, `message` (or `template`).
 
 ### Pattern: "Broadcast to a segment"
 
 1. `get_contacts` with filter criteria (or `import` into the campaign).
-2. `list_whatsapp_templates` → pick an `APPROVED` template if outside 24 h.
+2. `list_whatsapp_templates` → pick an `APPROVED` template.
 3. `manage_whatsapp_campaigns` → `create` → `start`.
 4. Poll `stats` until delivery completes.
 
@@ -323,4 +307,4 @@ Returns MCP version, API connectivity, and active device count. Use as the first
 
 1. Check `chat.lastInboundAt` from `get_whatsapp_chat_by_id`.
 2. If `> 24 h ago`, `list_whatsapp_templates` → pick the right one.
-3. `send_whatsapp_message` with `template` parameter populated.
+3. `send_whatsapp_message` with the `template` payload populated.

@@ -1,6 +1,6 @@
 ---
 name: wassenger-setup
-description: Set up Wassenger to automate WhatsApp Business with an AI agent. Use when the user is new to Wassenger, has not connected a number yet, needs an API key, or wants to install the Wassenger MCP server. Walks through API key creation, number connection (QR or WhatsApp Business API / Coexistence), MCP install, and a sanity test.
+description: Set up Wassenger to automate WhatsApp Business with an AI agent. Use when the user is new to Wassenger, has not connected a number yet, needs an API key, or wants to install the Wassenger MCP server. Walks through API key creation, connecting a number on the official WhatsApp Business API (new or via Coexistence), MCP install, and a sanity test. Targets the official WABA only — the legacy QR-pairing path is not covered by this skills pack.
 license: MIT
 metadata:
   author: Wassenger
@@ -55,15 +55,14 @@ A `200` response with a JSON array (possibly empty) means the key works. A `401`
 
 ## Step 2 — Connect a WhatsApp number
 
-The user has three connection options. Ask them which fits their business:
+This pack targets the **official WhatsApp Business API** (WABA). Ask the user which onboarding path fits their situation:
 
 | Option | Best for | What they need |
 |---|---|---|
-| **QR-paired number** | Solo operators, small teams, fast start | A phone with WhatsApp installed and the QR scanner |
-| **Official WhatsApp Business API (WABA)** | Companies that need official Meta-verified status, templates, higher scale | A verified Meta Business Account and a phone number not yet on WhatsApp |
-| **WABA Coexistence** | Existing WhatsApp users who want the official API on the **same** number | A number already on WhatsApp + Meta verification |
+| **Official WhatsApp Business API (WABA)** | New deployments — Meta-verified status, approved templates, full scale | A Meta Business Account and a phone number **not yet** on WhatsApp |
+| **WABA Coexistence** | Existing WhatsApp users moving the **same** number to the official API without losing chat history | A number already on WhatsApp + Meta verification |
 
-> The codebase docs about "number-pairing" features (groups, channels, communities) apply to **QR-paired** numbers only. Official WABA does **not** support groups or channels.
+> **Why WABA-only?** Wassenger also supports a legacy QR-pairing path (consumer WhatsApp linked to a device), but that path lacks the compliance, templates, and rate tiers production automation requires. This skills pack is built exclusively for WABA. Clients who genuinely need a QR-paired device can still use the Wassenger console — they just won't get the workflows below.
 
 Walk them through the connection wizard at https://app.wassenger.com/devices. After the number shows as "ready", grab its `device.id` — many MCP tools need it.
 
@@ -130,7 +129,7 @@ The agent calls `send_whatsapp_message`. Check WhatsApp on the phone — the mes
 If it fails, common causes:
 
 - `WASSENGER_API_KEY` missing in the MCP `env` block → restart the agent after editing config.
-- Device status is `disconnected` or `pairing` → re-scan QR or finish WABA verification.
+- Device status is `disconnected` or `pairing` → finish WABA verification in the console.
 - Recipient number is not WhatsApp-enabled → run `verifyWhatsAppNumberExists` first.
 - Hitting the **24-hour customer service window** on WABA → send a pre-approved template instead. See `wassenger-messaging` for templates.
 
