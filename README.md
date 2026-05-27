@@ -10,7 +10,9 @@
 
 ## What is this?
 
-A pack of **14 ready-to-install Agent Skills** that teach your AI agent how to automate WhatsApp Business workflows with Wassenger — order confirmations, lead qualification, support tickets, appointment reminders, broadcast campaigns, and more. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
+A pack of **19 ready-to-install Agent Skills** that teach your AI agent how to automate every aspect of WhatsApp Business with Wassenger — onboarding a team, organizing the inbox, sending messages, running campaigns, configuring auto-replies, plus seven industry-specific playbooks. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp Business API rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
+
+Scoped to the **official WhatsApp Business API** — built for production deployments, not legacy QR-paired devices.
 
 Built on top of [`wassengerhq/mcp-wassenger`](https://github.com/wassengerhq/mcp-wassenger), the official Wassenger Model Context Protocol server.
 
@@ -24,7 +26,7 @@ The CLI will:
 
 1. Ask for your Wassenger API key (get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/api-keys)).
 2. Validate it against the Wassenger API.
-3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 14 skills into the right directory.
+3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 19 skills into the right directory.
 4. Register the Wassenger MCP server so your agent can call WhatsApp tools immediately.
 
 Alternative installs:
@@ -46,15 +48,20 @@ npx skills add wassengerhq/wassenger-skills
 | `wassenger-setup` | Walks the user through getting an API key, connecting a WhatsApp number, and validating the install. |
 | `wassenger-mcp` | Reference for the Wassenger MCP server — every tool, every parameter, every transport option. |
 
-### Capabilities (5) — reusable building blocks
+### Capabilities (10) — reusable building blocks
 
 | Skill | What it does |
 |---|---|
 | `wassenger-messaging` | Send text, media, templates, polls, scheduled messages — with WABA template rules baked in. |
-| `wassenger-inbox` | Multi-agent inbox: statuses, assignment, labels, departments. |
-| `wassenger-campaigns` | Bulk broadcasts: segmentation, scheduling, delivery tracking. |
+| `wassenger-inbox` | Chat triage: statuses, manual assignment, internal notes, archive/restore, bulk housekeeping. |
+| `wassenger-campaigns` | Bulk broadcasts: segmentation, scheduling, delivery tracking, opt-out. |
 | `wassenger-webhooks` | Subscribe to real-time events with HMAC signature verification and retries. |
 | `wassenger-contacts` | CSV import, CRM sync, segmentation, export, phone validation. |
+| `wassenger-team` | Invite agents, set roles (admin / agent / readonly), grant per-device access, safe offboarding. |
+| `wassenger-labels` | Full label CRUD with the `namespace:value` convention, bulk-apply, query, reporting. |
+| `wassenger-routing` | Auto-assignment (round-robin, language-based, skills-based), departments, escalation, fallback. |
+| `wassenger-quick-replies` | Canned-response library — shortcuts (`/shipping`), media, visibility, bulk import. |
+| `wassenger-auto-replies` | Rule-based automatic responses — welcome, out-of-hours, busy, inactive follow-up. |
 
 ### Industries (7) — outcome-focused recipes
 

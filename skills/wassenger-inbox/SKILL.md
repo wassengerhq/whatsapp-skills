@@ -1,6 +1,6 @@
 ---
 name: wassenger-inbox
-description: Manage the Wassenger multi-agent WhatsApp inbox — chat status (active/resolved/pending/archived), assignment to team members, labels for organization, and departments for routing. Use when the user runs a customer-facing inbox with multiple agents and needs to organize chats, route conversations, tag and search them, or report on workload across the team.
+description: Manage chats in the Wassenger WhatsApp inbox — chat lifecycle (active/pending/resolved/archived), manual one-off assignment, internal notes for agent collaboration, archive and restore, bulk housekeeping, and workload reports. Use when the user wants to organize and triage chats. For label CRUD see wassenger-labels, for auto-assignment rules see wassenger-routing, for adding or removing agents see wassenger-team, for auto-replies see wassenger-auto-replies, for canned responses see wassenger-quick-replies.
 license: MIT
 metadata:
   author: Wassenger
@@ -11,37 +11,43 @@ metadata:
 
 # Wassenger Inbox
 
-Run a shared WhatsApp inbox like a customer-support team would: many chats, many agents, statuses, labels, departments, and SLAs.
+The day-to-day chat triage layer: read what's coming in, decide where it goes, mark what's done, archive what's old. The atomic features that compose with the inbox — labels, routing, team, auto-replies, quick replies — live in their own skills. Use those when the operation is specifically about that domain.
 
 ## When to use
 
-- The user mentions a **support inbox**, **CRM**, **customer service**, or **multi-agent** setup on WhatsApp.
-- They ask to assign / unassign / route chats, or to tag conversations with labels.
-- They want to see what's pending, what's resolved, what's been waiting too long.
-- They ask "who's handling X right now?" or want to report on team workload.
+- The user mentions a **support inbox** or **multi-agent setup** and wants to see what's pending / resolved.
+- They want to **manually assign** a single chat to an agent.
+- They want to **report on workload** (who's handling how many chats).
+- They want to **leave a note on a chat** for the next agent who picks it up.
+- They want to **archive** old chats or **restore** an archived one.
+- They want to **search** the inbox or **bulk-close** old chats.
 
-For sending messages out, route to `wassenger-messaging` or `wassenger-customer-support` (the latter wraps this skill with SLA + auto-reply logic).
+For specific atomic operations, route to the dedicated skill:
+
+| If the user wants to… | Go to |
+|---|---|
+| Auto-assign / route by department / escalate | `wassenger-routing` |
+| Create or apply labels (CRUD) | `wassenger-labels` |
+| Add / remove agents, manage roles | `wassenger-team` |
+| Set up welcome / out-of-office auto-replies | `wassenger-auto-replies` |
+| Build a library of canned responses | `wassenger-quick-replies` |
+| Send a message (one-off or template) | `wassenger-messaging` |
 
 ## Prerequisites
 
 - `wassenger-setup` complete.
 - At least one device active. Most tools take `device`.
-- Optional but recommended: at least one team member configured at https://app.wassenger.com/team and one department at https://app.wassenger.com/departments.
+- Team configured (`wassenger-team`).
 
 ## Concepts
 
-Wassenger's inbox model:
-
-| Concept | What it is | Where it lives |
-|---|---|---|
-| **Chat** | A single conversation thread with one contact (or group). | `chats` module |
-| **Chat status** | Lifecycle state: `active`, `pending`, `resolved`, `archived`. | Set via chat operations |
-| **Assignment** | Which team member owns the chat. | `team` module |
-| **Department** | Routing group (e.g. Sales, Support, Billing) with a list of agents. | `departments` module |
-| **Label** | Free-form tag applied to chats. Use for status that doesn't fit the lifecycle (`vip`, `bug`, `lead-qualified`, `follow-up`). | `labels` module |
-| **Queue** | Outbound message dispatch queue (not the inbox). | `queue` module — see `wassenger-campaigns` |
-
-Statuses are **mutually exclusive**. Labels are **stackable**.
+| Concept | What it is |
+|---|---|
+| **Chat** | A single conversation thread with one contact. |
+| **Chat status** | Lifecycle: `active`, `pending`, `resolved`, `archived`. **Mutually exclusive**. |
+| **Assignment** | Which team member owns the chat. One owner at a time. |
+| **Label** | Free-form tag (`vip`, `intent:billing`). **Stackable**. See `wassenger-labels`. |
+| **Note** | Internal-only annotation. Team sees it, the contact never does. |
 
 ## Recipes
 
@@ -56,64 +62,50 @@ get_whatsapp_chats_by_status
   - limit: 50
 ```
 
-Sort by `lastMessageAt:asc` to surface oldest first (typically what an SLA-driven team wants). Combine with `get_whatsapp_unread_chats` for the inbox "0 unread" view.
+Sort by `lastMessageAt:asc` to surface oldest first. Combine with `get_whatsapp_unread_chats` for the "0 unread" view.
 
-For a daily standup snapshot:
+Daily standup snapshot:
 
 ```
 get_whatsapp_chat_statistics with device + dateRange=today
   → totals by status, average response time, oldest pending
 ```
 
-### Recipe 2 — Assign a chat to an agent
+### Recipe 2 — Manually assign a chat
 
 > "Assign +34 600 111 222 to Marta."
 
 ```
 1. manage_whatsapp_team with operation=search, query="Marta"
    → member.id
-2. Patch the chat:
-   PATCH /v1/chats/{chatWid}/assignee  body: { assignedTo: <member.id> }
-   (exposed by the MCP via the chats module; the exact tool name maps to
-   the chats update operation in tools-reference.md)
+2. PATCH /v1/chats/{chatWid}  body: { assignedTo: <member.id> }
 ```
 
-To unassign, set `assignedTo: null`. Bulk-assign by mapping over a chat list filtered with `get_whatsapp_chats_by_status`.
+To unassign: `assignedTo: null`. For **automatic** assignment (round-robin, by intent, by language), don't loop manual calls — use `wassenger-routing`.
 
-### Recipe 3 — Route by department
+### Recipe 3 — Add an internal note
 
-> "Send every chat that mentions 'invoice' or 'billing' to the Finance department."
+> "Add a note: customer prefers Spanish, has a Pro plan, last contact in April."
 
-This is a **routing rule**, not a one-shot assignment. Two patterns:
-
-**A) Manual one-time sweep** (after the rule lands):
+Notes are internal — the team sees them in the chat sidebar; the customer never does. Perfect for context handoff between agents.
 
 ```
-1. search across recent chats:
-   for each chat in get_whatsapp_chats_by_status(active):
-     msgs = get_whatsapp_chat_messages(chat.wid, filter=search, query="invoice")
-     if msgs: tag chat with the Finance department
-2. To tag: manage_whatsapp_departments with operation=assign-chat, dept=<finance.id>, chat=<chat.wid>
+POST /v1/io/{deviceId}/chats/{chatWid}/notes
+  -H "Token: $WASSENGER_API_KEY"
+  body: {
+    "body": "Customer prefers Spanish. Pro plan since 2025-03. Last contact 2026-04-15 (billing question)."
+  }
 ```
 
-**B) Live routing via webhooks** — subscribe to `message:in:new` (see `wassenger-webhooks`), inspect content, set department. Webhook-driven routing scales; agent-driven sweeps don't.
-
-### Recipe 4 — Label and filter
-
-> "Tag every chat from Premium customers with 'vip'."
+List existing notes:
 
 ```
-1. manage_whatsapp_labels with operation=create, name="vip", color="#f1c40f"
-   → label.id (idempotent — if it exists, returns the existing one)
-2. For each premium contact:
-   manage_whatsapp_labels with operation=apply, label=<label.id>, chat=<chat.wid>
-3. Later, list only VIPs:
-   get_whatsapp_chats with filter labels=<label.id>
+GET /v1/io/{deviceId}/chats/{chatWid}/notes
 ```
 
-Labels are flat (no hierarchy). Use a `:` convention if you need nesting (`segment:vip`, `segment:churn-risk`, `bug:android`).
+Update / delete by note id. Notes are not in the MCP yet — call REST directly. Always leave a note when reassigning a chat to another agent (Recipe 2) — the next person needs the context.
 
-### Recipe 5 — Mark resolved / reopen
+### Recipe 4 — Mark resolved / reopen
 
 > "Mark the chat with +1 555 0100 as resolved."
 
@@ -121,45 +113,80 @@ Labels are flat (no hierarchy). Use a `:` convention if you need nesting (`segme
 PATCH /v1/chats/{chatWid}  body: { status: resolved }
 ```
 
-Resolved chats are filtered out of the default "active" view but remain searchable. To reopen, set `status: active`. The `archived` status is for chats the user wants out of search entirely.
+Resolved chats stay searchable. To reopen → `status: active`. To remove from default search entirely → `status: archived` (Recipe 5).
 
-### Recipe 6 — Get team workload
+### Recipe 5 — Archive / restore
+
+> "Archive this chat — we're done with it."
+
+```
+PUT /v1/io/{deviceId}/chats/{chatWid}/archive    # archive
+DELETE /v1/io/{deviceId}/chats/{chatWid}/archive # restore (unarchive)
+```
+
+**Archive vs Resolved:**
+
+- **Resolved** = "this was handled" — still appears in reports and search.
+- **Archived** = "remove from active view" — only shows when you query `get_whatsapp_archived_chats`.
+
+Use both; they're complementary. A chat is usually `resolved → archived` after the team has moved on.
+
+### Recipe 6 — Bulk close stale chats
+
+> "Resolve every chat untouched for over 30 days."
+
+```
+1. get_whatsapp_chats_by_date_range with from=<60d ago>, to=<30d ago>, sort=lastMessageAt:asc
+2. Filter status != resolved in code (server-side filter not always available)
+3. For each: PATCH /v1/chats/{wid} body: { status: resolved }
+4. After resolution, archive anything older than 90 days.
+```
+
+Wire to a daily cron. For larger inboxes (>10k stale chats), batch by week to keep individual jobs short.
+
+### Recipe 7 — Team workload report
 
 > "How many chats does each agent have right now?"
 
 ```
-1. manage_whatsapp_team with operation=search (all)  → list of members
+1. manage_whatsapp_team search ""  → all members
 2. For each member.id:
-     get_whatsapp_assigned_chats with device + assignedTo=<member.id> + status=active
+     get_whatsapp_assigned_chats with assignedTo=<member.id>, status=active
      → counts.length
-3. Render a table sorted by count desc.
+3. Render sorted table.
 ```
 
-Use this for daily standups, capacity planning, or to detect stale assignments (a member with 200+ open chats is probably not actually working them).
+Outliers (one agent with 200+ active chats) indicate broken assignment logic, not a hard worker — see `wassenger-routing` to rebalance.
 
-### Recipe 7 — Bulk close stale chats
+### Recipe 8 — Search the inbox
 
-> "Close every chat that's been resolved or untouched for over 30 days."
+> "Find every chat where the customer mentioned 'refund'."
 
 ```
-1. get_whatsapp_chats_by_date_range with from=<30d ago>, to=<now>, sort=lastMessageAt:asc
-2. Filter status != resolved AND lastMessageAt < now-30d in code
-3. For each: set status=resolved (or archived)
+For each active chat (paginated via get_whatsapp_chats_by_status):
+  msgs = get_whatsapp_chat_messages(chat.wid, filter=search, query="refund")
+  if msgs.length > 0: add to results
 ```
 
-For automation, wire this to a daily cron via your own scheduler, calling the MCP from a CI job or a serverless function.
+Heavy operation. For repeated queries, cache the chat→intent classification on `chat.metadata` per webhook (see `wassenger-webhooks`) so subsequent searches are O(1).
 
 ## Common pitfalls
 
-- **Statuses vs labels.** Don't use labels to track `pending`/`resolved` — that's what `status` is for. Use labels for *qualitative* tags (`vip`, `bug`, `prospect`) that orthogonally classify chats.
-- **Reassigning loses history.** Assignment is metadata; messages stay put. But notifications fire on reassignment — don't bulk-reassign during business hours unless you want everyone pinged.
-- **Departments overlap with labels.** A chat can belong to one department but many labels. Use departments for *routing* (who answers), labels for *attributes* (what kind of chat it is).
+- **Statuses vs labels.** Don't use labels to track `pending`/`resolved` — that's what `status` is for. Labels are for *qualitative* tags (`vip`, `bug`, `prospect`). See `wassenger-labels` for the namespace convention.
+- **Notes vs messages.** Notes are internal-only. Don't accidentally use the messaging tools to leave team annotations; the recipient receives the text and is confused. Always go through the `/notes` endpoint.
+- **Archive vs Resolved confusion.** Resolved = handled. Archived = out of view. Use both, in that order.
 - **`get_whatsapp_chats` is paginated.** Default `limit=20`, max 200. Loop with `offset` for large inboxes.
-- **WABA channels.** Channels don't have assignment or status (they're broadcast). Don't try to apply inbox concepts to channel messages.
+- **Looping manual assigns to fake auto-assignment.** If the goal is "every new chat should land on whoever is available", that's `wassenger-routing`, not a script around this skill. Manual assignment is for the one-off case.
+- **Reassigning during business hours.** Reassignment notifications ping the new owner instantly. Bulk-reassigning at 10am will distract the whole team — schedule for off-hours.
 
 ## See also
 
-- `wassenger-customer-support` — opinionated SLA + auto-reply playbook on top of this skill.
-- `wassenger-messaging` — replies and sends from inside the inbox.
-- `wassenger-webhooks` — drive routing rules from inbound events instead of polling.
-- `wassenger-mcp` — exact tool names and parameter shapes (`references/tools-reference.md`).
+- `wassenger-team` — manage agents, roles, device access.
+- `wassenger-routing` — auto-assignment, departments, escalation, fallback.
+- `wassenger-labels` — full label CRUD + bulk-apply + reporting.
+- `wassenger-auto-replies` — welcome / out-of-hours / busy automatic responses.
+- `wassenger-quick-replies` — canned-response library for agents.
+- `wassenger-messaging` — sending messages from inside the inbox.
+- `wassenger-webhooks` — drive inbox automation from inbound events.
+- `wassenger-customer-support` — opinionated SLA + escalation playbook on top of this skill.
+- `wassenger-mcp` — exact tool names and parameter shapes.
