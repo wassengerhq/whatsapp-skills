@@ -260,7 +260,7 @@ Generate a downloadable archive (CSV / JSON / PDF) of a chat or chat list.
 
 ### `verifyWhatsAppNumberExists`
 
-Check whether a phone number is registered on WhatsApp without sending a message. Powers the free tester at https://wassenger.com/whatsapp-number-tester.
+Check whether a phone number is registered on WhatsApp without sending a message. Powers the free tester at https://app.wassenger.com/whatsapp-number-tester.
 
 | Parameter | Type | Notes |
 |---|---|---|

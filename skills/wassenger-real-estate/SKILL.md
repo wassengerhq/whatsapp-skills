@@ -162,4 +162,4 @@ For e-signature, link to your provider (DocuSign, Signaturit). Don't try to sign
 - `wassenger-webhooks` — driving alerts from new MLS / portal listings.
 - `wassenger-campaigns` — for market-update broadcasts.
 - `wassenger-sales-bot` — qualification + handoff patterns also apply here.
-- Real estate article: https://wassenger.com/blog/how-real-estate-agents-are-conquering-the-market-with-whatsapp
+- Real estate article: https://wassenger.com/blog/how-real-estate-agents-are-conquering-the-market-by-automating-whatsapp

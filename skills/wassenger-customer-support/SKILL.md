@@ -30,7 +30,7 @@ For outbound sales / lead qualification, route to `wassenger-sales-bot`. For bro
 
 - `wassenger-setup` complete.
 - Team members configured at https://app.wassenger.com/team.
-- (Recommended) Departments configured at https://app.wassenger.com/departments (Tier 1, Billing, Tech, …).
+- (Recommended) Departments configured at https://app.wassenger.com/device/departments (Tier 1, Billing, Tech, …).
 - (Optional) A knowledge base / FAQ source for deflection.
 - For WABA: pre-approved **Utility templates** for out-of-hours, escalation acknowledgement, ticket-closed-feedback.
 

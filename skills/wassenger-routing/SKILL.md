@@ -27,7 +27,7 @@ For **manual** assignment ("assign this specific chat to Marta"), use `wassenger
 
 - `wassenger-setup` complete.
 - Team members configured (`wassenger-team`).
-- (Recommended) Departments configured at https://app.wassenger.com/departments — Tier 1, Sales, Billing, Tech, etc.
+- (Recommended) Departments configured at https://app.wassenger.com/device/departments — Tier 1, Sales, Billing, Tech, etc.
 - A small webhook handler if you want **content-based routing** (intent / language / keyword).
 
 ## The routing layers

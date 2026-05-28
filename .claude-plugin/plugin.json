@@ -55,6 +55,6 @@
     }
   },
   "postInstall": {
-    "message": "Wassenger Skills installed. Set WASSENGER_API_KEY in your environment, then ask your agent: 'List the WhatsApp devices in my Wassenger account.' Get an API key at https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=cli"
+    "message": "Wassenger Skills installed. Set WASSENGER_API_KEY in your environment, then ask your agent: 'List the WhatsApp devices in my Wassenger account.' Get an API key at https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=cli"
   }
 }

@@ -39,7 +39,7 @@ The MCP server does **not** expose subscribing to webhooks — webhook managemen
 
 ## Step 1 — Pick the events to receive
 
-Common event types (full list at https://app.wassenger.com/docs#webhooks):
+Common event types (full list at https://app.wassenger.com/docs/#tag/Webhooks):
 
 | Event | Fires when |
 |---|---|
@@ -221,4 +221,4 @@ Send yourself a WhatsApp message — the event should arrive in ngrok's inspecto
 - `wassenger-inbox` — for the chat / label / assignment side effects.
 - `wassenger-customer-support` — opinionated SLA + auto-reply playbook on top of webhooks.
 - `wassenger-campaigns` — opt-out webhook pattern in detail.
-- Full event reference: https://app.wassenger.com/docs#webhooks
+- Full event reference: https://app.wassenger.com/docs/#tag/Webhooks

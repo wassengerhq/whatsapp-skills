@@ -193,4 +193,4 @@ For HubSpot / Pipedrive / Salesforce / Attio, the easiest path is an n8n workflo
 - `wassenger-webhooks` — the event listener under all the cadence logic.
 - `wassenger-campaigns` — for outbound list-based outreach (vs. inbound qualification handled here).
 - Reference implementation: https://github.com/wassengerhq/whatsapp-chatgpt-bot
-- Sales bot article: https://wassenger.com/blog/create-a-whatsapp-sales-bot
+- Sales bot article: https://wassenger.com/blog/create-a-whatsapp-sales-bot-that-knows-everything-using-n8n-ready-to-use-template

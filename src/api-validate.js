@@ -32,7 +32,7 @@ async function call (resource, apiKey) {
     })
 
     if (res.status === 401) {
-      throw new Error('API key rejected (401). Verify at https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=cli')
+      throw new Error('API key rejected (401). Verify at https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=cli')
     }
     if (res.status === 403) {
       throw new Error('API key forbidden (403). The key may not have the required scopes.')

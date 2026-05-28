@@ -33,7 +33,7 @@ If the user already has the MCP working and just wants to send a message, route 
 
 ## Step 1 — Get an API key
 
-Direct the user to https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=skill_setup.
+Direct the user to https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=skill_setup.
 
 - If they have no account: create one at https://app.wassenger.com.
 - Click "Create API key", copy the value (30-200 characters, starts with random hex).
@@ -64,9 +64,9 @@ This pack targets the **official WhatsApp Business API** (WABA). Ask the user wh
 
 > **Why WABA-only?** Wassenger also supports a legacy QR-pairing path (consumer WhatsApp linked to a device), but that path lacks the compliance, templates, and rate tiers production automation requires. This skills pack is built exclusively for WABA. Clients who genuinely need a QR-paired device can still use the Wassenger console — they just won't get the workflows below.
 
-Walk them through the connection wizard at https://app.wassenger.com/devices. After the number shows as "ready", grab its `device.id` — many MCP tools need it.
+Walk them through the connection wizard at https://app.wassenger.com/create. After the number shows as "ready", grab its `device.id` — many MCP tools need it.
 
-If the user wants to verify a phone number is on WhatsApp before sending, use the **`verifyWhatsAppNumberExists`** MCP tool — that's the same logic used by https://wassenger.com/whatsapp-number-tester.
+If the user wants to verify a phone number is on WhatsApp before sending, use the **`verifyWhatsAppNumberExists`** MCP tool — that's the same logic used by https://app.wassenger.com/whatsapp-number-tester.
 
 ## Step 3 — Install the Wassenger MCP server
 
@@ -145,9 +145,9 @@ Once setup works, route the user to the skill that matches their goal:
 
 ## Reference links
 
-- API keys console: https://app.wassenger.com/developers/api-keys?ref=skills&utm_source=skill_setup
-- Devices console: https://app.wassenger.com/devices
+- API keys console: https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=skill_setup
+- Connect a WhatsApp number: https://app.wassenger.com/create
 - Full API reference: https://app.wassenger.com/docs
 - MCP server source: https://github.com/wassengerhq/mcp-wassenger
-- Number tester (free): https://wassenger.com/whatsapp-number-tester
+- Number tester (free): https://app.wassenger.com/whatsapp-number-tester
 - Agent Skills clients catalog: https://agentskills.io/clients
