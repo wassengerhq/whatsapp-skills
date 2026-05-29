@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-plugin.json",
   "name": "wassenger-skills",
   "version": "0.1.0",
-  "description": "Agent Skills for Wassenger — automate every aspect of WhatsApp Business (team setup, inbox triage, messaging, campaigns, auto-replies, routing, labels, contacts, plus 7 industry playbooks: e-commerce, sales, support, real estate, restaurants, logistics, marketing) by chatting with Claude. Bundles 19 skills + the official Wassenger MCP server. Scoped to the official WhatsApp Business API.",
+  "description": "Agent Skills for Wassenger — automate every aspect of WhatsApp Business (team setup, inbox triage, messaging, campaigns, auto-replies, routing, labels, contacts, analytics, plus 7 industry playbooks: e-commerce, sales, support, real estate, restaurants, logistics, marketing, and migration guides from Twilio and Wati) by chatting with Claude. Bundles 22 skills + the official Wassenger MCP server. Scoped to the official WhatsApp Business API.",
   "author": {
     "name": "Wassenger",
     "url": "https://wassenger.com",
@@ -37,13 +37,16 @@
     { "name": "wassenger-routing", "path": "skills/wassenger-routing", "category": "capability" },
     { "name": "wassenger-quick-replies", "path": "skills/wassenger-quick-replies", "category": "capability" },
     { "name": "wassenger-auto-replies", "path": "skills/wassenger-auto-replies", "category": "capability" },
+    { "name": "wassenger-analytics", "path": "skills/wassenger-analytics", "category": "capability" },
     { "name": "wassenger-ecommerce", "path": "skills/wassenger-ecommerce", "category": "industry", "vertical": "ecommerce" },
     { "name": "wassenger-sales-bot", "path": "skills/wassenger-sales-bot", "category": "industry", "vertical": "sales" },
     { "name": "wassenger-customer-support", "path": "skills/wassenger-customer-support", "category": "industry", "vertical": "customer-support" },
     { "name": "wassenger-real-estate", "path": "skills/wassenger-real-estate", "category": "industry", "vertical": "real-estate" },
     { "name": "wassenger-restaurants", "path": "skills/wassenger-restaurants", "category": "industry", "vertical": "restaurants" },
     { "name": "wassenger-logistics", "path": "skills/wassenger-logistics", "category": "industry", "vertical": "logistics" },
-    { "name": "wassenger-marketing", "path": "skills/wassenger-marketing", "category": "industry", "vertical": "marketing" }
+    { "name": "wassenger-marketing", "path": "skills/wassenger-marketing", "category": "industry", "vertical": "marketing" },
+    { "name": "wassenger-migrate-from-twilio", "path": "skills/wassenger-migrate-from-twilio", "category": "migration", "from": "twilio" },
+    { "name": "wassenger-migrate-from-wati", "path": "skills/wassenger-migrate-from-wati", "category": "migration", "from": "wati" }
   ],
   "mcpServers": {
     "wassenger": {

@@ -10,7 +10,7 @@
 
 ## What is this?
 
-A pack of **19 ready-to-install Agent Skills** that teach your AI agent how to automate every aspect of WhatsApp Business with Wassenger — onboarding a team, organizing the inbox, sending messages, running campaigns, configuring auto-replies, plus seven industry-specific playbooks. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp Business API rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
+A pack of **22 ready-to-install Agent Skills** that teach your AI agent how to automate every aspect of WhatsApp Business with Wassenger — onboarding a team, organizing the inbox, sending messages, running campaigns, configuring auto-replies, reporting on inbox analytics, plus seven industry-specific playbooks and migration guides from Twilio and Wati. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp Business API rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
 
 Scoped to the **official WhatsApp Business API** — built for production deployments, not legacy QR-paired devices.
 
@@ -26,7 +26,7 @@ The CLI will:
 
 1. Ask for your Wassenger API key (get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=readme)).
 2. Validate it against the Wassenger API.
-3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 19 skills into the right directory.
+3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 22 skills into the right directory.
 4. Register the Wassenger MCP server so your agent can call WhatsApp tools immediately.
 
 Alternative installs:
@@ -48,7 +48,7 @@ npx skills add wassengerhq/wassenger-skills
 | `wassenger-setup` | Walks the user through getting an API key, connecting a WhatsApp number, and validating the install. |
 | `wassenger-mcp` | Reference for the Wassenger MCP server — every tool, every parameter, every transport option. |
 
-### Capabilities (10) — reusable building blocks
+### Capabilities (11) — reusable building blocks
 
 | Skill | What it does |
 |---|---|
@@ -62,6 +62,7 @@ npx skills add wassengerhq/wassenger-skills
 | `wassenger-routing` | Auto-assignment (round-robin, language-based, skills-based), departments, escalation, fallback. |
 | `wassenger-quick-replies` | Canned-response library — shortcuts (`/shipping`), media, visibility, bulk import. |
 | `wassenger-auto-replies` | Rule-based automatic responses — welcome, out-of-hours, busy, inactive follow-up. |
+| `wassenger-analytics` | Reports & KPIs from live inbox data — status, agent workload, response/resolution time, volume, backlog, language. |
 
 ### Industries (7) — outcome-focused recipes
 
@@ -74,6 +75,13 @@ npx skills add wassengerhq/wassenger-skills
 | `wassenger-restaurants` | Take reservations, send menus, push reminders. |
 | `wassenger-logistics` | Send delivery notifications, tracking updates, proof of delivery. |
 | `wassenger-marketing` | Run segmented broadcasts, growth loops, retention sequences. |
+
+### Migration (2) — move from another provider
+
+| Skill | For teams that … |
+|---|---|
+| `wassenger-migrate-from-twilio` | Are moving a WhatsApp integration off Twilio — API mapping, templates, webhooks, before/after Node & Python. |
+| `wassenger-migrate-from-wati` | Are moving off Wati (wati.io) — session/template sends, named→positional params, broadcasts, webhooks. |
 
 ## How it works
 
