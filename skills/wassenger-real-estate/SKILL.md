@@ -7,7 +7,7 @@ metadata:
   version: "1.0.0"
   category: industry
   vertical: real-estate
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Wassenger for Real Estate

@@ -9,8 +9,11 @@ const AGENTS = [
     name: 'claude-code',
     label: 'Claude Code',
     skillsDir: path.join(HOME, '.claude', 'skills'),
-    configFile: path.join(HOME, '.claude', 'settings.json'),
-    detectPaths: [path.join(HOME, '.claude')],
+    // Claude Code reads user-level MCP servers from ~/.claude.json (top-level
+    // "mcpServers"), NOT from ~/.claude/settings.json (which holds settings/
+    // permissions/hooks only).
+    configFile: path.join(HOME, '.claude.json'),
+    detectPaths: [path.join(HOME, '.claude'), path.join(HOME, '.claude.json')],
     format: 'json',
     mcpKey: 'mcpServers'
   },
@@ -64,34 +67,55 @@ export async function writeMcpConfig (agent, apiKey) {
   }
 }
 
-async function writeJsonMcp (agent, apiKey) {
-  let config = {}
+// Write to a sibling temp file then rename, so a crash mid-write can never
+// truncate the user's live config.
+async function writeFileAtomic (file, content) {
+  const tmp = `${file}.${process.pid}.tmp`
+  await fs.writeFile(tmp, content)
+  await fs.rename(tmp, file)
+}
+
+async function readConfigFile (file) {
   try {
-    const raw = await fs.readFile(agent.configFile, 'utf8')
-    config = raw.trim() ? JSON.parse(raw) : {}
+    return await fs.readFile(file, 'utf8')
   } catch (err) {
-    if (err.code !== 'ENOENT') throw err
+    if (err.code === 'ENOENT') return ''
+    throw err
+  }
+}
+
+async function writeJsonMcp (agent, apiKey) {
+  const raw = await readConfigFile(agent.configFile)
+  let config = {}
+  if (raw.trim()) {
+    try {
+      config = JSON.parse(raw)
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error(`Could not parse ${agent.configFile} as JSON (it may be hand-edited or contain comments). Left it untouched — add the "wassenger" MCP server manually, or fix the JSON and re-run.`)
+      }
+      throw err
+    }
   }
 
   config[agent.mcpKey] = config[agent.mcpKey] ?? {}
   config[agent.mcpKey].wassenger = {
     command: 'npx',
-    args: ['-y', '@wassengerhq/mcp-wassenger'],
+    args: ['-y', 'mcp-wassenger'],
     env: { WASSENGER_API_KEY: apiKey }
   }
 
   await fs.mkdir(path.dirname(agent.configFile), { recursive: true })
-  await fs.writeFile(agent.configFile, JSON.stringify(config, null, 2) + '\n')
+  await writeFileAtomic(agent.configFile, JSON.stringify(config, null, 2) + '\n')
 }
 
 async function writeTomlMcp (agent, apiKey) {
-  let existing = ''
-  try { existing = await fs.readFile(agent.configFile, 'utf8') } catch {}
+  const existing = await readConfigFile(agent.configFile)
 
   const safeKey = apiKey.replace(/"/g, '\\"')
   const block = `[mcp_servers.wassenger]
 command = "npx"
-args = ["-y", "@wassengerhq/mcp-wassenger"]
+args = ["-y", "mcp-wassenger"]
 env = { WASSENGER_API_KEY = "${safeKey}" }`
 
   const re = /\[mcp_servers\.wassenger\][\s\S]*?(?=\n\[|\n*$)/m
@@ -100,33 +124,42 @@ env = { WASSENGER_API_KEY = "${safeKey}" }`
     : (existing.trimEnd() ? existing.trimEnd() + '\n\n' : '') + block + '\n'
 
   await fs.mkdir(path.dirname(agent.configFile), { recursive: true })
-  await fs.writeFile(agent.configFile, next)
+  await writeFileAtomic(agent.configFile, next)
 }
 
 async function writeYamlMcp (agent, apiKey) {
-  let existing = ''
-  try { existing = await fs.readFile(agent.configFile, 'utf8') } catch {}
+  const existing = await readConfigFile(agent.configFile)
 
   if (/^\s*wassenger:/m.test(existing)) {
-    process.stderr.write('  (existing "wassenger" entry in YAML config — left untouched to avoid corruption; edit manually.)\n')
+    process.stderr.write('  (existing "wassenger" extension in Goose config — left untouched to avoid corruption; edit manually.)\n')
     return
   }
 
   const safeKey = apiKey.replace(/"/g, '\\"')
-  const block = `extensions:
-  wassenger:
-    command: npx
-    args: ["-y", "@wassengerhq/mcp-wassenger"]
-    env:
-      WASSENGER_API_KEY: "${safeKey}"
-`
+  // The wassenger extension as a child of `extensions:` (2-space indent).
+  const child = [
+    '  wassenger:',
+    '    command: npx',
+    '    args: ["-y", "mcp-wassenger"]',
+    '    env:',
+    `      WASSENGER_API_KEY: "${safeKey}"`
+  ].join('\n')
+
+  let next
+  const headerRe = /^extensions:[ \t]*$/m
+  if (headerRe.test(existing)) {
+    // Insert as a child under the existing block — keeps sibling extensions intact.
+    next = existing.replace(headerRe, match => `${match}\n${child}`)
+  } else if (/^extensions:/m.test(existing)) {
+    // `extensions:` exists in an inline/flow form we can't safely splice.
+    process.stderr.write('  (could not safely edit the existing "extensions:" block in Goose config — add the wassenger extension manually.)\n')
+    return
+  } else {
+    next = (existing.trimEnd() ? existing.trimEnd() + '\n\n' : '') + 'extensions:\n' + child + '\n'
+  }
 
   await fs.mkdir(path.dirname(agent.configFile), { recursive: true })
-  const next = existing.includes('extensions:')
-    ? existing.replace(/^extensions:\s*$/m, block.trimEnd())
-    : (existing.trimEnd() ? existing.trimEnd() + '\n\n' : '') + block
-
-  await fs.writeFile(agent.configFile, next)
+  await writeFileAtomic(agent.configFile, next)
 }
 
 export const SUPPORTED_AGENTS = AGENTS.map(a => a.name)

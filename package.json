@@ -41,6 +41,9 @@
     "README.md",
     "LICENSE"
   ],
+  "devDependencies": {
+    "skills-ref": "^0.1.5"
+  },
   "scripts": {
     "validate": "skills-ref validate ./skills/*",
     "test": "echo 'no tests yet' && exit 0"

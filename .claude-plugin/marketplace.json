@@ -48,7 +48,7 @@
       "categories": ["communication", "customer-service", "automation"],
       "requires": {
         "node": ">=18",
-        "mcpServers": ["@wassengerhq/mcp-wassenger"]
+        "mcpServers": ["mcp-wassenger"]
       }
     }
   ]

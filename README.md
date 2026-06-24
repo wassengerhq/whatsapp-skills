@@ -18,26 +18,28 @@ Built on top of [`wassengerhq/mcp-wassenger`](https://github.com/wassengerhq/mcp
 
 ## Install
 
-```bash
-npx @wassengerhq/skills init
+Pick the method that matches your agent — each installs the 22 skills and registers the Wassenger MCP server.
+
+**Claude Code** (plugin):
+
+```text
+/plugin marketplace add wassengerhq/wassenger-skills
+/plugin install wassenger-skills@wassengerhq
 ```
 
-The CLI will:
-
-1. Ask for your Wassenger API key (get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=readme)).
-2. Validate it against the Wassenger API.
-3. Auto-detect your agent (Claude Code, Cursor, Codex, …) and install the 22 skills into the right directory.
-4. Register the Wassenger MCP server so your agent can call WhatsApp tools immediately.
-
-Alternative installs:
+**Any agent** (via the open [Agent Skills](https://agentskills.io) CLI):
 
 ```bash
-# Via the skills.sh marketplace
 npx skills add wassengerhq/wassenger-skills
-
-# As a Claude Code plugin
-# inside Claude Code: /plugin install wassengerhq/wassenger-skills
 ```
+
+**Guided setup** — interactive CLI that asks for your API key, validates it, auto-detects your agent, installs the skills, and wires up the MCP server:
+
+```bash
+npx @wassengerhq/skills init   # publishing to npm soon
+```
+
+You'll need a Wassenger API key — get one at [app.wassenger.com/developers](https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=readme) and set it as `WASSENGER_API_KEY` (the guided setup does this for you).
 
 ## The skills
 
@@ -97,7 +99,7 @@ Example:
 
 - Node.js ≥ 18
 - A Wassenger account with at least one connected WhatsApp number
-- An agent that supports the Agent Skills format (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Goose, OpenCode, and 30+ others — see [agentskills.io/clients](https://agentskills.io))
+- An agent that supports the Agent Skills format (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Goose, OpenCode, and 30+ others — see [agentskills.io/clients](https://agentskills.io/clients))
 
 ## Documentation
 
@@ -107,7 +109,7 @@ Example:
 
 ## Contributing
 
-PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) (coming soon).
+PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

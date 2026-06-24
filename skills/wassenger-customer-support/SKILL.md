@@ -7,7 +7,7 @@ metadata:
   version: "1.0.0"
   category: industry
   vertical: customer-support
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Wassenger for Customer Support

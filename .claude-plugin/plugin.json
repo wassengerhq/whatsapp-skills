@@ -51,7 +51,7 @@
   "mcpServers": {
     "wassenger": {
       "command": "npx",
-      "args": ["-y", "@wassengerhq/mcp-wassenger"],
+      "args": ["-y", "mcp-wassenger"],
       "env": {
         "WASSENGER_API_KEY": "${WASSENGER_API_KEY}"
       }

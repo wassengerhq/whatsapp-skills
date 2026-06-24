@@ -7,7 +7,7 @@ metadata:
   version: "1.0.0"
   category: migration
   vendor: wassenger
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Migrate from Twilio to Wassenger

@@ -6,12 +6,12 @@ metadata:
   author: Wassenger
   version: "1.0.0"
   category: setup
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Wassenger MCP
 
-The Wassenger MCP server (`@wassengerhq/mcp-wassenger`, repo: https://github.com/wassengerhq/mcp-wassenger) wraps the Wassenger REST API as a Model Context Protocol server so any compatible agent can manage WhatsApp by calling typed tools instead of issuing HTTP requests.
+The Wassenger MCP server (`mcp-wassenger`, repo: https://github.com/wassengerhq/mcp-wassenger) wraps the Wassenger REST API as a Model Context Protocol server so any compatible agent can manage WhatsApp by calling typed tools instead of issuing HTTP requests.
 
 ## When to use
 
@@ -45,17 +45,17 @@ Each module groups related tools. Names below are the **canonical category** —
 
 - **chats** — search, filter (status, contact type, archived, assigned, unread), and get chat metadata.
 - **chat-messages** — pull message history with filters (recent, date range, sender, type, thread, by id).
-- **labels** — create, apply, list labels; filter chats by label.
+- **labels** — create, list, update, delete labels (CRUD). To apply/remove a label on a chat, use the `send_whatsapp_message` `agent` action (`labels:add` / `labels:remove`).
 
 ### Audience
 
-- **contacts** — list, search, import (CSV), export, segment, get details.
+- **contacts** — no general contacts tool in the MCP. Reach contact data via `search_whatsapp_chats_by_name`, campaign contacts (`manage_whatsapp_campaign_contacts`), `verifyWhatsAppNumberExists`, the embedded `chat.contact`, or the REST `/contacts` API (see `wassenger-contacts`).
 
 ### Multi-agent inbox
 
 - **team** — create, update, delete team members; grant or revoke device access.
 - **departments** — list, create, update, delete departments and their agent assignments.
-- **queue** — get queue status, pause, resume, freeze, reject, delete queued messages.
+- **queue** — get queue status, update status (pause / active / reject / freeze), delete queued messages.
 
 ### Outbound campaigns
 
@@ -77,14 +77,14 @@ When deciding which tool to call, walk down this short decision tree:
 3. **Is the user asking to organize things?** → `labels` (tag chats), `team`/`departments` (assignment), `queue` (control delivery).
 4. **Is the user asking about the account itself?** → `devices` (numbers connected), `ping` (health), `files` (media storage), `numbers` (validate a phone).
 
-Always prefer the **most specific** tool. For example, when the user says "show me unread chats", call `get_whatsapp_unread_chats`, **not** `get_whatsapp_chats` with a filter — the specific tool has tighter defaults and better limits.
+Use the unified `get_whatsapp_chats` with the right `action` (e.g. `action: "unread"` for unread chats, `action: "by_status"` for resolved/active). Thin convenience wrappers like `get_whatsapp_unread_chats` exist and call the same backend, so either form works.
 
 ## Common pitfalls
 
 - **24-hour customer service window.** On WABA numbers, free-form messages are only allowed within 24 h of the contact's last inbound message. Outside that window, you must send a pre-approved **template** via the `templates` module. Always check `chat.lastInboundAt` before sending a free-form message — if older than 24 h, switch to a template.
 - **Templates are pre-approved per language.** Listing them with `list_whatsapp_templates` shows status `APPROVED` / `PENDING` / `REJECTED`. Only `APPROVED` ones can be sent.
 - **No groups / channels / WhatsApp Status on WABA.** Official WABA numbers do not support those features. If a recipe seems to need a "group", redesign it around 1:1 chats, a broadcast campaign, or a different communication channel for internal coordination.
-- **Conversation tiers.** WABA paces outbound by the device's daily conversation tier (250 / 1000 / 10000 / unlimited unique users per 24 h). Check via `get_whatsapp_device_details` before large sends.
+- **Conversation tiers.** WABA paces outbound by the device's daily conversation tier (250 / 1K / 10K / 100K / unlimited unique users per 24 h). Check via `get_whatsapp_device_details` before large sends.
 - **Rate limits.** Heavy outbound traffic is paced by the Wassenger queue. Use `queue` tools to monitor and `campaigns` (not loop-sending) for any audience over ~50 contacts.
 - **Media must be uploaded first** (or referenced by URL). For local files, call `upload_whatsapp_file_from_url` (or the upload-file flow), grab the returned `file.id`, then attach it to a `send_whatsapp_message` call.
 - **Always supply `device`.** Almost every tool needs `device` (the device ID). If the user has only one device, fetch it once via `get_whatsapp_devices` and reuse the ID. If they have multiple, ask.

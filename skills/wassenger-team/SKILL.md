@@ -6,7 +6,7 @@ metadata:
   author: Wassenger
   version: "1.0.0"
   category: capability
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Wassenger Team

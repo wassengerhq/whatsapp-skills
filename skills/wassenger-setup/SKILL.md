@@ -6,7 +6,7 @@ metadata:
   author: Wassenger
   version: "1.0.0"
   category: setup
-  requires-mcp: "@wassengerhq/mcp-wassenger"
+  requires-mcp: "mcp-wassenger"
 ---
 
 # Wassenger Setup
@@ -28,7 +28,7 @@ If the user already has the MCP working and just wants to send a message, route 
 
 1. A valid Wassenger **API key** stored as an environment variable (`WASSENGER_API_KEY`).
 2. At least one **WhatsApp number connected** to the Wassenger account.
-3. The **`@wassengerhq/mcp-wassenger`** MCP server installed and registered in the agent's config.
+3. The **`mcp-wassenger`** MCP server installed and registered in the agent's config.
 4. A confirmation that the agent can list devices and send a test message.
 
 ## Step 1 — Get an API key
@@ -81,7 +81,7 @@ Add this block to the user's `~/.claude/settings.json` under `mcpServers`:
   "mcpServers": {
     "wassenger": {
       "command": "npx",
-      "args": ["-y", "@wassengerhq/mcp-wassenger"],
+      "args": ["-y", "mcp-wassenger"],
       "env": {
         "WASSENGER_API_KEY": "${WASSENGER_API_KEY}"
       }
@@ -93,7 +93,7 @@ Add this block to the user's `~/.claude/settings.json` under `mcpServers`:
 Or use the CLI shortcut:
 
 ```bash
-claude mcp add wassenger npx -y @wassengerhq/mcp-wassenger
+claude mcp add wassenger npx -y mcp-wassenger
 ```
 
 ### For Cursor
