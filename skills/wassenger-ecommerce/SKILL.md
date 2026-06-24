@@ -47,35 +47,42 @@ For low-code users, the handler can be an n8n workflow using `wassengerhq/n8n-wa
 
 > "When a customer places an order, send them a WhatsApp confirmation with the order number and a tracking link."
 
-Wire the store's `order.created` (or `order.paid`) webhook to a handler:
+Wire the store's `order.created` (or `order.paid`) webhook to a handler. A fresh order is almost always **outside the 24h window** (the customer hasn't messaged you yet — a checkout/consent event does *not* open it), so lead with a **Utility template**:
 
 ```
 on order.created (from Shopify / Woo / …):
   customer = order.customer
   if !customer.phone or !customer.smsConsent: return 200
 
-  # Within 24h of opt-in (checkout consent), free-form is allowed.
+  # The 24h window opens only on a customer INBOUND message, not on checkout.
+  # For a fresh order, send a Utility template:
   send_whatsapp_message
     - device: $DEVICE_ID
-    - phone: customer.phone
-    - message: |
-        ¡Gracias por tu compra, {{customer.firstName}}!
-        Pedido #{{order.number}} — Total {{order.totalPrice}}
-        Sigue tu pedido aquí: {{order.statusUrl}}
+    - action: template
+    - chat: customer.wid          # e.g. 34600111222@c.us
+    - template:
+        name: "order_confirmation"
+        language: "es"
+        body:
+          - { name: "1", value: customer.firstName }
+          - { name: "2", value: order.number }
+          - { name: "3", value: order.totalPrice }
+        button:
+          - { type: url, position: 0, name: "1", value: order.statusUrlSuffix }
   ack 200
 ```
 
-If outside 24h or you prefer a template:
+If the customer messaged you within the last 24h (the chat's `lastInboundAt` is `< 24h` ago), free-form is allowed instead:
 
 ```
 send_whatsapp_message
-  - template:
-      name: "order_confirmation"
-      language: "es"
-      components:
-        - { type: header, parameters: [{ type: text, text: order.number }] }
-        - { type: body, parameters: [{ type: text, text: customer.firstName }, { type: currency, ... }] }
-        - { type: button, sub_type: url, index: "0", parameters: [{ type: text, text: order.statusUrl }] }
+  - device: $DEVICE_ID
+  - action: text
+  - chat: customer.wid
+  - message: |
+      ¡Gracias por tu compra, {{customer.firstName}}!
+      Pedido #{{order.number}} — Total {{order.totalPrice}}
+      Sigue tu pedido aquí: {{order.statusUrl}}
 ```
 
 ### Recipe 2 — Abandoned cart recovery

@@ -67,8 +67,9 @@ Sort by `lastMessageAt:asc` to surface oldest first. Combine with `get_whatsapp_
 Daily standup snapshot:
 
 ```
-get_whatsapp_chat_statistics with device + dateRange=today
-  → totals by status, average response time, oldest pending
+get_whatsapp_chat_statistics with device + groupBy=status + fromDate=<today 00:00> + toDate=now
+  → totals by status. (For response-time / oldest-pending, list the chats and
+    compute client-side — see wassenger-analytics.)
 ```
 
 ### Recipe 2 — Manually assign a chat
@@ -76,12 +77,16 @@ get_whatsapp_chat_statistics with device + dateRange=today
 > "Assign +34 600 111 222 to Marta."
 
 ```
-1. manage_whatsapp_team with operation=search, query="Marta"
-   → member.id
-2. PATCH /v1/chats/{chatWid}  body: { assignedTo: <member.id> }
+1. manage_whatsapp_team with action=search, query="Marta"
+   → userId
+2. send_whatsapp_message
+     - action: "agent"
+     - chat: <chatWid>
+     - agentId: <userId>
+     - actions: [{ action: "chat:assign", params: { agent: <userId> } }]
 ```
 
-To unassign: `assignedTo: null`. For **automatic** assignment (round-robin, by intent, by language), don't loop manual calls — use `wassenger-routing`.
+This assigns the chat (and can send an accompanying message in the same call). To unassign, use `{ action: "chat:unassign" }`. The equivalent direct REST call is `PATCH /v1/chats/{chatWid}` with `{ "agent": <userId> }` (header `Token: $WASSENGER_API_KEY`) — verify the exact field in app.wassenger.com/docs. For **automatic** assignment (round-robin, by intent, by language), don't loop manual calls — use `wassenger-routing`.
 
 ### Recipe 3 — Add an internal note
 
@@ -89,39 +94,59 @@ To unassign: `assignedTo: null`. For **automatic** assignment (round-robin, by i
 
 Notes are internal — the team sees them in the chat sidebar; the customer never does. Perfect for context handoff between agents.
 
+Notes are **not in the MCP** — call the Wassenger REST API directly (header `Token: $WASSENGER_API_KEY`). Verify the exact path/body in app.wassenger.com/docs (Chats → notes):
+
 ```
-POST /v1/io/{deviceId}/chats/{chatWid}/notes
+# Direct REST call (not an MCP tool)
+POST https://api.wassenger.com/v1/io/{deviceId}/chats/{chatWid}/notes
   -H "Token: $WASSENGER_API_KEY"
   body: {
     "body": "Customer prefers Spanish. Pro plan since 2025-03. Last contact 2026-04-15 (billing question)."
   }
 ```
 
-List existing notes:
+List existing notes (also a direct REST call):
 
 ```
-GET /v1/io/{deviceId}/chats/{chatWid}/notes
+GET https://api.wassenger.com/v1/io/{deviceId}/chats/{chatWid}/notes
+  -H "Token: $WASSENGER_API_KEY"
 ```
 
-Update / delete by note id. Notes are not in the MCP yet — call REST directly. Always leave a note when reassigning a chat to another agent (Recipe 2) — the next person needs the context.
+Update / delete by note id. Always leave a note when reassigning a chat to another agent (Recipe 2) — the next person needs the context.
 
 ### Recipe 4 — Mark resolved / reopen
 
 > "Mark the chat with +1 555 0100 as resolved."
 
+The MCP way — resolve (and optionally reply) in one call:
+
 ```
-PATCH /v1/chats/{chatWid}  body: { status: resolved }
+send_whatsapp_message
+  - action: "agent"
+  - chat: <chatWid>
+  - agentId: <userId>
+  - actions: [{ action: "chat:resolve" }]      # chat:unresolve to reopen
 ```
 
-Resolved chats stay searchable. To reopen → `status: active`. To remove from default search entirely → `status: archived` (Recipe 5).
+Or the equivalent direct REST call (not an MCP tool — verify in app.wassenger.com/docs):
+
+```
+PATCH https://api.wassenger.com/v1/chats/{chatWid}
+  -H "Token: $WASSENGER_API_KEY"
+  body: { "status": "resolved" }
+```
+
+Resolved chats stay searchable. To reopen → `chat:unresolve` (or `status: "active"`). To remove from default search entirely → archive (Recipe 5). Valid chat statuses are `active`, `pending`, `resolved`, `archived` (plus `muted` / `banned` / `removed`).
 
 ### Recipe 5 — Archive / restore
 
 > "Archive this chat — we're done with it."
 
+Archive/restore are direct REST calls (not MCP tools — header `Token: $WASSENGER_API_KEY`; verify the exact path in app.wassenger.com/docs):
+
 ```
-PUT /v1/io/{deviceId}/chats/{chatWid}/archive    # archive
-DELETE /v1/io/{deviceId}/chats/{chatWid}/archive # restore (unarchive)
+PUT    https://api.wassenger.com/v1/io/{deviceId}/chats/{chatWid}/archive   # archive
+DELETE https://api.wassenger.com/v1/io/{deviceId}/chats/{chatWid}/archive   # restore (unarchive)
 ```
 
 **Archive vs Resolved:**
@@ -136,10 +161,12 @@ Use both; they're complementary. A chat is usually `resolved → archived` after
 > "Resolve every chat untouched for over 30 days."
 
 ```
-1. get_whatsapp_chats_by_date_range with from=<60d ago>, to=<30d ago>, sort=lastMessageAt:asc
+1. get_whatsapp_chats_by_date_range with fromDate=<60d ago>, toDate=<30d ago>,
+     sortBy=lastMessageAt, sortOrder=asc
 2. Filter status != resolved in code (server-side filter not always available)
-3. For each: PATCH /v1/chats/{wid} body: { status: resolved }
-4. After resolution, archive anything older than 90 days.
+3. For each: resolve via send_whatsapp_message action:"agent" actions:[{action:"chat:resolve"}]
+     (or the REST PATCH https://api.wassenger.com/v1/chats/{wid} body: { "status": "resolved" })
+4. After resolution, archive anything older than 90 days (Recipe 5).
 ```
 
 Wire to a daily cron. For larger inboxes (>10k stale chats), batch by week to keep individual jobs short.
@@ -149,9 +176,9 @@ Wire to a daily cron. For larger inboxes (>10k stale chats), batch by week to ke
 > "How many chats does each agent have right now?"
 
 ```
-1. manage_whatsapp_team search ""  → all members
-2. For each member.id:
-     get_whatsapp_assigned_chats with assignedTo=<member.id>, status=active
+1. manage_whatsapp_team action=search query=""  → all members
+2. For each userId:
+     get_whatsapp_assigned_chats with agentId=<userId>, status=["active"]
      → counts.length
 3. Render sorted table.
 ```
@@ -164,7 +191,7 @@ Outliers (one agent with 200+ active chats) indicate broken assignment logic, no
 
 ```
 For each active chat (paginated via get_whatsapp_chats_by_status):
-  msgs = get_whatsapp_chat_messages(chat.wid, filter=search, query="refund")
+  msgs = get_whatsapp_chat_messages(chat=chat.wid, action=search, query="refund")
   if msgs.length > 0: add to results
 ```
 
@@ -175,7 +202,7 @@ Heavy operation. For repeated queries, cache the chat→intent classification on
 - **Statuses vs labels.** Don't use labels to track `pending`/`resolved` — that's what `status` is for. Labels are for *qualitative* tags (`vip`, `bug`, `prospect`). See `wassenger-labels` for the namespace convention.
 - **Notes vs messages.** Notes are internal-only. Don't accidentally use the messaging tools to leave team annotations; the recipient receives the text and is confused. Always go through the `/notes` endpoint.
 - **Archive vs Resolved confusion.** Resolved = handled. Archived = out of view. Use both, in that order.
-- **`get_whatsapp_chats` is paginated.** Default `limit=20`, max 200. Loop with `offset` for large inboxes.
+- **`get_whatsapp_chats` is paginated.** Default `limit=20`, **max 100**. Loop with `offset` for large inboxes.
 - **Looping manual assigns to fake auto-assignment.** If the goal is "every new chat should land on whoever is available", that's `wassenger-routing`, not a script around this skill. Manual assignment is for the one-off case.
 - **Reassigning during business hours.** Reassignment notifications ping the new owner instantly. Bulk-reassigning at 10am will distract the whole team — schedule for off-hours.
 

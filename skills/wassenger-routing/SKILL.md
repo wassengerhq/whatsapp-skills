@@ -72,10 +72,14 @@ Start with Layer 1 only. Add Layer 2 when you have enough volume to justify the 
 
 > "Distribute new chats across the team automatically."
 
-Wassenger's auto-assignment is a per-device REST config (not in the MCP — call directly):
+Wassenger's auto-assignment (Layer 1) is **not an MCP tool**. It is a per-device setting:
+
+- **MCP-only users:** configure it in the console at `https://app.wassenger.com/device/{deviceId}/team` → *Auto-assign* (round-robin / least-busy, candidate agents, skip offline/busy, reassign-if-unanswered). This is a one-time setup, not a per-chat call.
+- **REST users:** the same config is a direct REST call (not an MCP tool — send the `Token: <API_KEY>` header):
 
 ```
-PUT /v1/devices/{deviceId}/autoassign
+# Direct REST call — Token: <API_KEY> header
+PUT https://api.wassenger.com/v1/devices/{deviceId}/autoassign
   - enabled: true
   - mode: "round-robin"
   - candidates: [<agent.id>, <agent.id>, ...]   # explicit list
@@ -84,17 +88,11 @@ PUT /v1/devices/{deviceId}/autoassign
   - reassignIfUnanswered: 30                    # minutes
 ```
 
-To list current config:
+To list the current config (REST): `GET https://api.wassenger.com/v1/devices/{deviceId}/autoassign`.
 
-```
-GET /v1/devices/{deviceId}/autoassign
-```
+Toggle off in seconds if a campaign blows up the inbox (REST): `PUT …/autoassign` with `{ enabled: false }`.
 
-Toggle off in seconds if a campaign blows up the inbox:
-
-```
-PUT /v1/devices/{deviceId}/autoassign  body: { enabled: false }
-```
+> **Layers 2–3 are not MCP features either.** Content-based routing and escalation below require a webhook handler you host (`wassenger-webhooks`); the chat *assignment* each one performs is then a single `send_whatsapp_message` `action: agent` (`chat:assign`) call.
 
 ### Recipe 2 — Route by department
 
@@ -104,15 +102,19 @@ Two patterns — **A** is offline / batch, **B** is live.
 
 **A) Periodic sweep (low volume, no webhook):**
 
+There's no `assignedTo: null` filter and `manage_whatsapp_departments` has **no assign-chat action** (it's CRUD-only: list/create/update/delete). Pull active chats, keep the unassigned ones client-side (`chat.owner.agent == null`), and assign via the `send_whatsapp_message` `action: agent` (`chat:assign`) side-effect, which takes a `department` (or `agent`) in its params:
+
 ```
 hourly:
-  for chat in get_whatsapp_chats_by_status(active, assignedTo: null):
-    msgs = get_whatsapp_chat_messages(chat.wid, filter=search, query="invoice")
+  chats = get_whatsapp_chats(action: by_status, status: ["active"])
+  for chat in chats where chat.owner?.agent == null:    # unassigned, client-side
+    msgs = get_whatsapp_chat_messages(action: search, chat: chat.wid, query: "invoice")
     if msgs:
-      manage_whatsapp_departments
-        - operation: assign-chat
-        - department: <finance.id>
+      send_whatsapp_message
+        - action: agent
         - chat: <chat.wid>
+        - agentId: <your-agent-id>
+        - actions: [ { action: "chat:assign", params: { department: <finance.id> } } ]
 ```
 
 **B) Live (via webhook — preferred):**
@@ -121,16 +123,17 @@ hourly:
 on message:in:new (via wassenger-webhooks):
   intent = classify_intent(data.message.body)   # rule-based or LLM
   if intent == "billing":
-    assign chat to Finance department
-    label "intent:billing"
+    # one send_whatsapp_message action: agent call does both:
+    actions: [ { action: "chat:assign", params: { department: <finance.id> } },
+               { action: "labels:add",  params: { labels: ["intent:billing"] } } ]
   elif intent == "technical":
-    assign to Tech dept
-    label "intent:technical"
+    actions: [ { action: "chat:assign", params: { department: <tech.id> } },
+               { action: "labels:add",  params: { labels: ["intent:technical"] } } ]
   else:
     leave for Layer 1 (auto-assignment to Tier 1)
 ```
 
-Cache the classification on `chat.metadata.intent` so subsequent inbound messages skip the classifier call.
+Cache the classification with a `metadata:set` side-effect (or your own DB) so subsequent inbound messages skip the classifier call.
 
 ### Recipe 3 — Language-based routing
 
@@ -142,10 +145,15 @@ on message:in:new:
     lang = chat.contact.language
   else:
     lang = detect_language(data.message.body)   # LLM or franc / cld3
-    PATCH contact with detected language       # cache for next time
+    # cache for next time — direct REST call, Token: <API_KEY> header:
+    PATCH https://api.wassenger.com/v1/contacts/{contactId}  body: { language: lang }
 
   agent = LANGUAGE_TO_AGENT[lang] || DEFAULT_AGENT
-  PATCH /v1/chats/{wid}  body: { assignedTo: agent.id }
+  send_whatsapp_message
+    - action: agent
+    - chat: <chat.wid>
+    - agentId: <agent.id>
+    - actions: [ { action: "chat:assign", params: { agent: <agent.id> } } ]
 ```
 
 Detect on the **first** inbound message and cache. Don't re-detect on every reply (LLM call cost adds up).
@@ -178,11 +186,13 @@ Maintain the `skills` attribute on each team member as a custom field (an array 
 
 ```
 every 5 min:
-  for chat in get_whatsapp_chats_by_status(active) where assignedTo is set:
+  chats = get_whatsapp_chats(action: by_status, status: ["active"])
+  for chat in chats where chat.owner?.agent != null:   # assigned, client-side
     last_outbound = last outbound message in chat
     if (now - last_outbound) > 2h AND chat.escalated is false:
-      reassign to team_lead OR senior_in_department(chat)
-      label "escalated"
+      # reassign + tag in one send_whatsapp_message action: agent call:
+      actions: [ { action: "chat:assign", params: { agent: <team_lead.id> } },
+                 { action: "labels:add",  params: { labels: ["escalated"] } } ]
       mark chat.escalated = true   (in your DB)
       Slack/email both the previous owner and the new one
 ```
@@ -195,13 +205,15 @@ The single most important rule of routing: **never leave a chat orphaned**.
 
 ```
 hourly:
-  orphans = get_whatsapp_chats_by_status(active) where:
-    assignedTo is null
+  chats = get_whatsapp_chats(action: by_status, status: ["active"])
+  orphans = chats where:
+    chat.owner?.agent == null                 # unassigned, client-side
     AND firstInboundAt < (now - 1h)
 
   for chat in orphans:
-    assign to DEFAULT_FALLBACK_USER   # an admin or always-on operator
-    label "fallback"
+    # assign to an always-on operator + tag, one send_whatsapp_message action: agent:
+    actions: [ { action: "chat:assign", params: { agent: <DEFAULT_FALLBACK_USER.id> } },
+               { action: "labels:add",  params: { labels: ["fallback"] } } ]
     notify in Slack: "Chat with {customer} sat orphaned for >1h"
 ```
 
@@ -214,9 +226,13 @@ A chat without an owner for hours is a churned customer waiting to happen. Even 
 ```
 on message:in:new:
   last_chat = previous chat with same contact (before this one)
-  if last_chat and last_chat.assignedTo is set:
-    PATCH /v1/chats/{this_chat.wid}  body: { assignedTo: last_chat.assignedTo }
-    label "sticky"
+  if last_chat and last_chat.owner?.agent != null:
+    send_whatsapp_message
+      - action: agent
+      - chat: <this_chat.wid>
+      - agentId: <last_chat.owner.agent.id>
+      - actions: [ { action: "chat:assign", params: { agent: <last_chat.owner.agent.id> } },
+                   { action: "labels:add",  params: { labels: ["sticky"] } } ]
 ```
 
 Big CSAT bump for B2B / high-touch sales. Disable for high-volume support where consistency matters less than fast response.

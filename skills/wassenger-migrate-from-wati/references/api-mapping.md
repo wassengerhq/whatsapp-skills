@@ -8,7 +8,14 @@ Endpoint names below are from the official Wati API (ClareAI Postman collection,
 |---|---|---|
 | Header | `Authorization: Bearer <token>` | `Token: <API_KEY>` |
 | Base URL | tenant `https://live-server-<id>.wati.io` | fixed `https://api.wassenger.com/v1` |
-| Token rotation | `POST /api/v1/rotateToken` | regenerate at https://app.wassenger.com/developers/apikeys |
+| Token rotation | dashboard only (Wati profile/API settings) | regenerate at https://app.wassenger.com/developers/apikeys |
+
+> The `Token` header value is your Wassenger API key. Read it from an env var and
+> fail fast if it's missing — an unset/empty `Token` returns a generic **401** that's
+> easy to mistake for a bad key:
+> ```js
+> if (!process.env.WASSENGER_API_KEY) throw new Error('WASSENGER_API_KEY is not set')
+> ```
 
 ## Endpoints
 
@@ -44,9 +51,11 @@ Endpoint names below are from the official Wati API (ClareAI Postman collection,
 | `template_name` | `template.name` |
 | `broadcast_name` | — (no equivalent, drop) |
 | (inferred) | `template.language` (**required**: `en`, `es`, `pt_BR`, …) |
-| `parameters: [{ name, value }]` (named) | `template.components: [{ type:"body", parameters:[{type:"text", text:value}] }]` (positional) |
+| `parameters: [{ name, value }]` (named) | `template.body: [{ name:"1", value }, { name:"2", value }]` (positional — `name` is the `{{N}}` index) |
 
-**Positional mapping**: order the Wassenger `parameters[]` to match where each `{{var}}` appears in the template body. Wati's names are just labels; Meta resolves by position.
+**Positional mapping**: order the Wassenger `body[]` entries to match where each `{{var}}` appears in the template body, and set `name` to that `{{N}}` index. Wati's param names are just labels; Wassenger/Meta resolve by position — **do not trust Wati's `parameters[]` array order**.
+
+> Wassenger uses its own template shape (`template: { name, language, header?, body: [{ name, value }], button? }`), **not** Meta's `components: [...]`. The `header` and `button` arrays follow the same `{ name, value }` convention.
 
 ## Bulk template (`sendTemplateMessages`)
 

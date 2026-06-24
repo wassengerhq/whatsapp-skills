@@ -41,7 +41,7 @@ Brand-new users (no Wati) → `wassenger-setup` + `wassenger-messaging`.
 | Free-form send | `POST /api/v1/sendSessionMessage/{n}` form `messageText` | `POST /messages` `{ message }` |
 | Media send | `POST /api/v1/sendSessionFile/{n}` multipart | `POST /messages` `{ media: { url \| file } }` |
 | Template send | `POST /api/v1/sendTemplateMessage?whatsappNumber=` | `POST /messages` `{ template: {...} }` |
-| Template params | `parameters: [{ name, value }]` (**named**) | `components[].parameters[]` (**positional/typed**) |
+| Template params | `parameters: [{ name, value }]` (**named**) | `template.body: [{ name, value }]` (**positional** — `name` is the `{{N}}` index) |
 | `broadcast_name` | required on every template send | no equivalent — drop it |
 | Bulk template | `POST /api/v1/sendTemplateMessages` `{ receivers[] }` | campaigns (`wassenger-campaigns`) |
 | Assign agent | `POST /api/v1/assignOperator?email=&whatsappNumber=` | `PATCH /chats/{wid}` `{ assignedTo }` (`wassenger-inbox`) |
@@ -72,7 +72,7 @@ Two constants in every migration: **add the `device`** (Wati's number is implici
 
 ### Recipe 2 — Port a template send (named → positional params)
 
-This is the trickiest part. Wati parameters are **named**; Meta/Wassenger are **positional** components.
+This is the trickiest part. Wati parameters are **named**; Wassenger/Meta resolve them by **position** (`{{1}},{{2}}`).
 
 ```
 Wati:
@@ -84,14 +84,14 @@ Wassenger:
 POST /messages
 { "device":"<id>", "phone":"+34600111222",
   "template": { "name":"order_update", "language":"en",
-    "components":[{ "type":"body", "parameters":[
-      {"type":"text","text":"John"},        // was {{name}}
-      {"type":"text","text":"12345"} ]}]}}  // was {{ordernumber}}
+    "body":[
+      {"name":"1","value":"John"},        // was {{name}}  → {{1}}
+      {"name":"2","value":"12345"} ]}}    // was {{ordernumber}} → {{2}}
 ```
 
 Rules:
 - **Drop `broadcast_name`** — Wassenger has no such concept.
-- **Map by position**: Wati named params resolve to `{{1}},{{2}}…` in the order they appear in the template body. Put them in `components.body.parameters[]` in that same order.
+- **Map by position**: Wati named params resolve to `{{1}},{{2}}…` in the order they appear in the template body. Put them in `template.body[]` in that same order, with `name` set to the `{{N}}` index. Wassenger uses its own template shape (`template: { name, language, header?, body: [{ name, value }], button? }`) — **not** Meta's `components: [...]`. **Do not trust Wati's `parameters[]` array order** — order by the template body.
 - **Add `language`** — Wati infers it; Wassenger requires the exact template language (`en`, `es`, `pt_BR`). Confirm with `list_whatsapp_templates`.
 - The template itself is already approved on the WABA you migrate — you **re-map identifiers, you don't re-submit**.
 

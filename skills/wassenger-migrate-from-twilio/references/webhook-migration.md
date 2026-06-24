@@ -26,12 +26,12 @@ The response includes a `secret` — store it; you need it to verify signatures.
 
 | Twilio form field | Wassenger JSON |
 |---|---|
-| `MessageSid` | `data.id` |
-| `From` = `whatsapp:+E164` | `data.fromNumber` = `+E164` |
-| `Body` | `data.body` |
+| `MessageSid` | `data.message.id` |
+| `From` = `whatsapp:+E164` | `data.message.from` = `E164` |
+| `Body` | `data.message.body` |
 | `NumMedia` / `MediaUrl0` | `data.media` |
 | `ProfileName` | `data.chat.contact.name` |
-| `WaId` | `data.chat.contact.wid` |
+| `WaId` | `data.chat.contact.phone` |
 | (event type implicit per URL) | `event` = `message:in:new` |
 
 ## Node — handler before/after
@@ -71,7 +71,7 @@ app.post('/wassenger', express.raw({ type: 'application/json' }), (req, res) => 
 
   const evt = JSON.parse(req.body.toString())
   if (evt.event === 'message:in:new') {
-    handleInbound(evt.data.fromNumber, evt.data.body)
+    handleInbound(evt.data.message.from, evt.data.message.body)
   }
   res.sendStatus(200)
 })
@@ -109,7 +109,8 @@ async def wassenger_hook(request: Request):
         raise HTTPException(403)
     evt = json.loads(raw)
     if evt.get("event") == "message:in:new":
-        handle_inbound(evt["data"]["fromNumber"], evt["data"].get("body", ""))
+        msg = evt["data"]["message"]
+        handle_inbound(msg["from"], msg.get("body", ""))
     return ""
 ```
 
@@ -117,5 +118,5 @@ async def wassenger_hook(request: Request):
 
 - Use the **raw body** for the HMAC — if your framework already parsed JSON, re-serializing changes bytes and the signature fails. Capture the raw buffer (Express `express.raw`, FastAPI `await request.body()`).
 - One Wassenger subscription can cover inbound + all status events; you don't need separate URLs like Twilio's per-message `StatusCallback`.
-- Wassenger retries failed deliveries — make the handler idempotent on `data.id`.
+- Wassenger retries failed deliveries — make the handler idempotent on `data.message.id` (the message ID, not the event `id`).
 - See `wassenger-webhooks` for the full event catalog and payload shapes.

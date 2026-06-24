@@ -37,11 +37,11 @@ Store the returned `secret` for signature verification.
 
 | Wati (typical) | Wassenger |
 |---|---|
-| `waId` | `data.fromNumber` |
-| `text` | `data.body` |
+| `waId` | `data.message.from` |
+| `text` | `data.message.body` |
 | `senderName` | `data.chat.contact.name` |
 | `owner` (bool: true=outbound) | use the `event` name (`message:in:*` vs `message:out:*`) |
-| `whatsappMessageId` / `id` | `data.id` |
+| `whatsappMessageId` / `id` | `data.message.id` |
 | `eventType` | `event` |
 
 ## Node — handler (Wassenger, with signature)
@@ -53,13 +53,17 @@ app.post('/wassenger', express.raw({ type: 'application/json' }), (req, res) => 
   const sig = (req.headers['x-wassenger-signature'] || '').replace(/^sha256=/, '')
   const actual = crypto.createHmac('sha256', process.env.WASSENGER_WEBHOOK_SECRET)
     .update(req.body).digest('hex')
-  const ok = sig.length === actual.length &&
-    crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(actual, 'hex'))
+  // Decode both to buffers; timingSafeEqual needs equal-length BUFFERS,
+  // so compare byte lengths (not hex-string lengths) before comparing.
+  const sigBuf = Buffer.from(sig, 'hex')
+  const actualBuf = Buffer.from(actual, 'hex')
+  const ok = sigBuf.length === actualBuf.length &&
+    crypto.timingSafeEqual(sigBuf, actualBuf)
   if (!ok) return res.sendStatus(403)
 
   const evt = JSON.parse(req.body.toString())
   if (evt.event === 'message:in:new') {
-    handleInbound(evt.data.fromNumber, evt.data.body)   // was waId / text
+    handleInbound(evt.data.message.from, evt.data.message.body)   // was waId / text
   }
   res.sendStatus(200)
 })
@@ -79,7 +83,8 @@ async def hook(request: Request):
         raise HTTPException(403)
     evt = json.loads(raw)
     if evt.get("event") == "message:in:new":
-        handle_inbound(evt["data"]["fromNumber"], evt["data"].get("body", ""))
+        msg = evt["data"]["message"]
+        handle_inbound(msg["from"], msg.get("body", ""))
     return ""
 ```
 
@@ -87,5 +92,5 @@ async def hook(request: Request):
 
 - Use the **raw body** for the HMAC (don't re-serialize parsed JSON — bytes change, signature fails).
 - One Wassenger subscription covers inbound + status; Wati often used separate dashboard toggles per event.
-- Make handlers idempotent on `data.id` — Wassenger retries.
+- Make handlers idempotent on `data.message.id` (or the top-level `event.id`) — Wassenger retries.
 - Full event catalog + payload shapes: `wassenger-webhooks`.

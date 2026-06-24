@@ -11,7 +11,7 @@ metadata:
 
 # Wassenger Analytics
 
-Turn the live inbox into numbers. There is **no single "give me the stats" endpoint** you can rely on — the dedicated statistics tools are currently unreliable (see Pitfalls). Instead, this skill pulls **filtered lists of chats and messages** with the tools that *do* work, then aggregates them client-side into the metric the user asked for.
+Turn the live inbox into numbers. Wassenger does expose dedicated statistics tools (`get_whatsapp_chat_statistics` and `analyze_whatsapp_chats` action=`statistics`) and they work — but they aggregate over fixed groupings. When you need a **custom window or a metric they don't group by** (true first-response time, label distribution, language split), prefer pulling **filtered lists of chats and messages** and aggregating them client-side. Most recipes below take the list-and-aggregate route for exactly that reason.
 
 The pattern is always the same: **(1) resolve the device(s) → (2) pull a filtered slice → (3) paginate until complete → (4) group / count / time-delta in code → (5) render the answer.**
 
@@ -38,7 +38,7 @@ Route elsewhere when the request is an action, not a measurement:
 ## Prerequisites
 
 - `wassenger-setup` complete; at least one device. **Every tool here takes `device`** — resolve it first with `get_whatsapp_devices` (use `device.id`). For multi-device accounts, run per device and sum.
-- To turn agent IDs into names, fetch the roster once with `manage_whatsapp_team` (operation `search`, empty query) and build an `id → name` map.
+- To turn agent IDs into names, fetch the roster once with `manage_whatsapp_team` (action `search`, empty query) and build an `id → name` map (use `m.name`).
 
 ## How metrics are derived
 
@@ -82,7 +82,7 @@ Statuses are `active · pending · resolved · archived` (plus `muted · banned 
 > "Which agent is handling the most chats right now?"
 
 ```
-1. team = manage_whatsapp_team(operation=search, query="")  → id→name map
+1. team = manage_whatsapp_team(action=search, query="")  → id→name map (m.name)
 2. For each member.id:
      get_whatsapp_chats(device, action=assigned, agentId=<id>, limit=100)
      → count
@@ -130,11 +130,14 @@ get_whatsapp_unread_chats(device, minUnreadCount=1, sortBy=lastMessageAt, sortOr
 > "How many messages did we send yesterday, by type?"
 
 ```
-get_whatsapp_chat_messages(device, action=by_type,
-   messageTypes:["text","image","video","audio","document"],
-   fromDate=<yesterday 00:00>, toDate=<today 00:00>, limit=50) — paginate
-→ count per messageType, split inbound vs outbound by message direction.
+For each chat active in the window (from get_whatsapp_chats by_date_range):
+  get_whatsapp_chat_messages(chat=<chat.wid>, action=by_type,
+     messageTypes:["text","image","video","audio","document"],
+     fromDate=<yesterday 00:00>, toDate=<today 00:00>, limit=50) — paginate
+→ sum per messageType across chats, split inbound vs outbound by message direction.
 ```
+
+`by_type` / `by_sender` are **per-chat** — they require a `chat`. There's no single device-wide call, so loop over the chats active in the window (or use `analyze_whatsapp_chats` action=`export` and tally the export).
 
 ### Recipe 7 — Language / country & label distribution
 
@@ -150,7 +153,7 @@ Great for deciding which languages need an agent (`wassenger-routing` language r
 
 ## Common pitfalls
 
-- **The dedicated stats tools are broken — do not use them.** `get_whatsapp_chat_statistics` and `analyze_whatsapp_chats` action=`statistics` currently return `404 "Chat with ID 'analytics' was not found"` (the request mis-routes). Always use the list-and-aggregate recipes above. Re-test periodically; switch over if/when they're fixed.
+- **Prefer list-and-aggregate for custom windows.** `get_whatsapp_chat_statistics` (params: `device` + `groupBy` ∈ status/agent/department/contactType/day/week/month + `fromDate`/`toDate`) and `analyze_whatsapp_chats` action=`statistics` both work, but they only group the way they group. For an arbitrary date window or a metric they don't expose (true first-response time, label/language distribution), the list-and-aggregate recipes above are more flexible — that's why most recipes use them.
 - **`device` is mandatory.** No metric is account-wide automatically — loop per device and sum for multi-number accounts.
 - **Pagination is on you.** `get_whatsapp_chats` defaults to `limit=20` (max 100). For weekly/monthly windows, loop with date slices or `offset` until the page is short — never report from a single un-paginated page.
 - **Per-chat `stats.{inbound,outbound}Messages` can read 0.** Don't trust them for volume; count from `get_whatsapp_chat_messages` instead.

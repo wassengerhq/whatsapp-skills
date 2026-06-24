@@ -42,7 +42,7 @@ If the user is brand-new (no Twilio), skip this and go to `wassenger-setup` + `w
 | Recipient | `To: "whatsapp:+34600111222"` | `phone: "+34600111222"` (no prefix) |
 | Text body | `Body` | `message` |
 | Media | `MediaUrl` (1+) | `media: { url }` or `{ file }` |
-| Template | `ContentSid` + `ContentVariables` | `template: { name, language, components }` |
+| Template | `ContentSid` + `ContentVariables` | `template: { name, language, body }` |
 | Schedule | `ScheduleType=fixed` + `SendAt` (needs Messaging Service) | `deliverAt` (ISO 8601) |
 | Message ID | `MessageSid` (`SMxx␣…`) | `message.id` |
 | Status webhook | `StatusCallback` URL | webhook subscription, events `message:out:*` |
@@ -79,11 +79,10 @@ Twilio uses an opaque `ContentSid` (created in the Content Builder) plus `Conten
 ```
 Twilio:    ContentSid="HXxxxx…", ContentVariables='{"1":"Pablo","2":"20:00"}'
 Wassenger: template: { name: "reservation_reminder", language: "es",
-             components: [{ type:"body", parameters:[
-               {type:"text",text:"Pablo"},{type:"text",text:"20:00"}]}]}
+             body: [ { name: "1", value: "Pablo" }, { name: "2", value: "20:00" } ] }
 ```
 
-Map each Content variable `{{1}},{{2}}` to the matching `components.body.parameters[]` slot. Confirm the template exists and is approved with `list_whatsapp_templates` (same Meta approval carries over — you do **not** re-submit if the template is already approved on the WABA you're moving). See `references/api-mapping.md` for header/button component mapping.
+Map each Content variable `{{1}},{{2}}` to the matching `template.body[]` slot (positional `name`, the value in `value`). Confirm the template exists and is approved with `list_whatsapp_templates` (same Meta approval carries over — you do **not** re-submit if the template is already approved on the WABA you're moving). See `references/api-mapping.md` for header/button component mapping.
 
 ### Recipe 3 — Port the inbound webhook
 
@@ -91,7 +90,7 @@ The biggest code change. Twilio sends **form-encoded** params and signs with **S
 
 ```
 Twilio inbound:   From, To, Body, NumMedia, MediaUrl0, ProfileName, WaId, MessageSid
-Wassenger inbound: event="message:in:new", data.fromNumber, data.body, data.media, data.id
+Wassenger inbound: event="message:in:new", data.message.from, data.message.body, data.message.id
 Subscribe:        POST /v1/webhooks { url, events:["message:in:new"], device }
 ```
 

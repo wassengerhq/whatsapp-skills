@@ -34,8 +34,8 @@ Every send falls into one of two modes:
 
 | Mode | When it applies | Tool to call |
 |---|---|---|
-| **Free-form** | The recipient sent a message to this device in the last 24 hours. | `send_whatsapp_message` with `message` / `media` / `poll` / etc. |
-| **Template** | The last inbound message is older than 24 hours, **or** no prior conversation exists. | `send_whatsapp_message` with `template: { name, language, components }`. |
+| **Free-form** | The recipient sent a message to this device in the last 24 hours. | `send_whatsapp_message` with `action:"text"` / `"media"` / `"poll"` / etc. |
+| **Template** | The last inbound message is older than 24 hours, **or** no prior conversation exists. | `send_whatsapp_message` with `action:"template"` + `template: { name, language, body, … }`. |
 
 **Decision flow:**
 
@@ -53,10 +53,11 @@ List approved templates with `list_whatsapp_templates` before sending — only t
 
 ```
 1. get_whatsapp_devices → pick the ready device, store device.id
-2. (optional) verifyWhatsAppNumberExists with the phone
+2. (optional) verifyWhatsAppNumberExists with the phone (takes E.164, e.g. "+34600111222")
 3. send_whatsapp_message
    - device: <device.id>
-   - phone: "+34600111222"
+   - action: "text"
+   - chat: "34600111222@c.us"
    - message: "Tu pedido #1234 está listo para recoger"
 ```
 
@@ -71,9 +72,10 @@ If the user has a public URL:
 ```
 send_whatsapp_message
   - device: <id>
-  - phone: "+15550100"
+  - action: "media"
+  - chat: "15550100@c.us"
   - media: { url: "https://example.com/receipt.pdf" }
-  - caption: "Here is your receipt"  # optional
+  - message: "Here is your receipt"  # optional caption — there is no `caption` param
 ```
 
 If they have a local file, upload it first:
@@ -81,10 +83,10 @@ If they have a local file, upload it first:
 ```
 1. upload_whatsapp_file_from_url with the public URL
    → returns file.id
-2. send_whatsapp_message with media: { file: <file.id> }
+2. send_whatsapp_message with action: "media", media: { file: <file.id> }
 ```
 
-Supported media: images (jpg/png/webp), audio (ogg/mp3), video (mp4), documents (pdf, docx, xlsx, txt, …). WhatsApp limits: 16 MB images/audio, 100 MB documents, ~16 MB video.
+Supported media: images (jpg/png/webp), audio (ogg/mp3), video (mp4), documents (pdf, docx, xlsx, txt, …). Approximate WhatsApp limits: images ~5 MB, audio ~16 MB, video and documents up to ~100 MB (uploaded via resumable upload).
 
 ### Recipe 3 — Send a WABA template (outside the 24h window)
 
@@ -93,37 +95,37 @@ Supported media: images (jpg/png/webp), audio (ogg/mp3), video (mp4), documents 
 Assuming a `reservation_reminder` template approved in Spanish with variables `{{1}}=customer_name`, `{{2}}=time`:
 
 ```
-1. list_whatsapp_templates with device + status=APPROVED + language=es
+1. list_whatsapp_templates with device + status=APPROVED
    → confirm "reservation_reminder" exists
 2. For each contact:
    send_whatsapp_message
      - device: <id>
-     - phone: <contact.phone>
+     - action: "template"
+     - chat: <contact.wid>            # e.g. "34600111222@c.us"
      - template:
          name: "reservation_reminder"
          language: "es"
-         components:
-           - type: body
-             parameters: [{ type: text, text: contact.name }, { type: text, text: "20:00" }]
+         body: [{ name: "1", value: contact.name }, { name: "2", value: "20:00" }]
 ```
 
-If the template has a header image or button, populate the matching `components` block. The exact shape mirrors Meta's template-message schema — `list_whatsapp_templates` returns the expected variables per template.
+If the template has a header image or a dynamic button, populate `template.header` and `template.button[]` (not Meta-style `components`). The header takes `{ media: { url, type } }`, `{ text: { name, value } }`, or `{ location: {…} }`; each button is `{ type, position, name, value }`. There is **no** top-level `buttons` parameter. `list_whatsapp_templates` returns the expected variables per template.
 
 ### Recipe 4 — Schedule for later
 
 > "Schedule a Good Morning message to my list at 8am tomorrow."
 
-Add `deliverAt` (ISO 8601):
+Use `action:"scheduled"` with `deliverAt` (ISO 8601) — or `delay` (seconds) / `delayTo` (`"1h"`). `deliverAt` is only valid with the scheduled action:
 
 ```
 send_whatsapp_message
   - device: <id>
-  - phone: "+34600111222"
+  - action: "scheduled"
+  - chat: "34600111222@c.us"
   - message: "Good morning! ☀️"
   - deliverAt: "2026-05-28T08:00:00+02:00"
 ```
 
-Wassenger queues the message and dispatches it at the requested time. Use `manage_whatsapp_queue` with operation `status` to verify it landed in the queue.
+Wassenger queues the message and dispatches it at the requested time. Use `manage_whatsapp_queue` with `action:"get_status"` to verify it landed in the queue.
 
 ### Recipe 5 — Send a poll
 
@@ -132,35 +134,37 @@ Wassenger queues the message and dispatches it at the requested time. Use `manag
 ```
 send_whatsapp_message
   - device: <id>
-  - phone: "+34600111222"
+  - action: "poll"
+  - chat: "34600111222@c.us"
   - poll:
-      name: "Which day works for you?"
+      question: "Which day works for you?"
       options: ["Friday", "Saturday", "Sunday"]
-      selectableCount: 1
+      multipleAnswers: false   # set true to allow more than one selection
 ```
 
-Polls are supported on the WABA Cloud API. Read poll results later with `get_whatsapp_chat_messages` filtered by `messageType=poll`. Confirm your device is on a Cloud-API-compatible plan if polls don't appear — older WABA on-premise hosting may not support them.
+Polls are supported on the WABA Cloud API. Read poll results later with `get_whatsapp_chat_messages` action=`by_type` and `messageTypes:["poll"]`. Confirm your device is on a Cloud-API-compatible plan if polls don't appear — older WABA on-premise hosting may not support them.
 
 ### Recipe 6 — Reply / react / forward
 
 > "React with 👍 to the last message from +34 600 111 222."
 
 ```
-1. get_whatsapp_chat_messages with chat=<chat.wid>, filter=recent, limit=1
+1. get_whatsapp_chat_messages with chat=<chat.wid>, action=recent, limit=1
 2. manage_whatsapp_message_interactions
-   - operation: react
-   - messageId: <last.id>
-   - emoji: "👍"
+   - chat: <chat.wid>
+   - action: "reaction"
+   - reactionMessage: <last.id>
+   - reaction: "👍"          # use "-" to remove a reaction
 ```
 
-Other operations: `reply` (threaded reply with `replyTo`), `forward` (to another chat), `delete-for-me`, `delete-for-all`.
+Other actions: `reply` (threaded reply — `quote` = the message ID to reply to, plus `message`) and `forward` (to another chat). There is no delete-message operation in the MCP.
 
 ## Common pitfalls
 
 - **Sending free-form outside 24 h.** Returns `131047` from Meta. Switch to a template or wait for the customer to reply first.
-- **Template variables out of order.** `{{1}}` in the template == `parameters[0]` in the call. Off-by-one will deliver gibberish.
-- **Forgetting `device`.** Defaults to nothing — the API rejects with `400`. Always pass.
-- **Wrong number format.** Use E.164 (`+34600111222`), no spaces. The MCP also accepts chat WIDs (`34600111222@c.us`) but E.164 is safer.
+- **Template variables out of order.** `{{1}}` in the template == the entry with `name: "1"` in `template.body[]`. Mismatched names will deliver gibberish.
+- **Forgetting `action` or `device`.** `action` selects what kind of message you send; `device` is needed when the account has more than one number. Missing either commonly trips a `400`.
+- **Recipient format.** The recipient field is `chat` — a WhatsApp ID / WID such as `34600111222@c.us` (digits + `@c.us`, no `+` or spaces). There is no `phone` parameter on `send_whatsapp_message`. (`verifyWhatsAppNumberExists` is the exception — it takes an E.164 `phoneNumber`.)
 - **Media URL not reachable.** Wassenger fetches the URL server-side. If it returns 403/404 or requires auth, upload via `upload_whatsapp_file_from_url` after first making it public, or proxy through your own server.
 - **Marketing copy in a Utility template.** Meta categorizes templates at approval time. Sending marketing through a Utility template gets the template (and potentially the WABA) suspended on review. Use the right category from the start.
 

@@ -60,15 +60,18 @@ on form submission:
   verifyWhatsAppNumberExists(lead.phone) → if false, fall back to email
   send_whatsapp_message
     - device: $DEVICE_ID
-    - phone: lead.phone
-    - message: |
-        Hola {{firstName}}, gracias por tu interés en {{product}}.
-        Soy {{salesAgent}} de Wassenger. Para preparar tu demo,
-        ¿podría saber el tamaño de tu equipo (1-10, 11-50, 50+)?
-  CRM.createDeal(stage: "new", source: "whatsapp", chat: $chatWid)
+    - action: template
+    - chat: lead.wid          # e.g. 34600111222@c.us
+    - template:
+        name: "demo_welcome"
+        language: "es"
+        body:
+          - { name: "1", value: lead.firstName }
+          - { name: "2", value: product }
+  CRM.createDeal(stage: "new", source: "whatsapp", chat: lead.wid)
 ```
 
-Personalize with the data the form already captured. Don't ask the customer to repeat themselves.
+`verifyWhatsAppNumberExists` takes only the phone number (E.164) — there is no `device` argument. A first-touch or scheduled send (this welcome, a `demo_link`, a reminder) reaches a lead who has **not** messaged you yet, so it's outside the 24h window and **must** use an APPROVED template — free-form text would be rejected. Personalize with the data the form already captured; don't ask the customer to repeat themselves.
 
 ### Recipe 2 — Lead qualification (3 questions max)
 

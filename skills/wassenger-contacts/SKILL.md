@@ -13,6 +13,8 @@ metadata:
 
 The audience side of WhatsApp: who you can reach, what you know about them, and the opt-in trail behind each one. Scoped to WABA — for the WABA-vs-QR rationale see `wassenger-setup`.
 
+> **The Wassenger MCP has no general contacts tool.** There is no `get_contacts`, `search_contacts`, `get_contact_details`, or `export_contacts`. Standalone contact CRUD, search, segmentation, import, and export are done against the **REST `/contacts` API** (direct HTTPS calls with a `Token: <API_KEY>` header — clearly labelled REST throughout the recipes below). The MCP only touches contact data three indirect ways: `search_whatsapp_chats_by_name` (find a chat and its embedded `chat.contact`), `manage_whatsapp_campaign_contacts` (recipients *inside a campaign*), and `verifyWhatsAppNumberExists` (is this number on WhatsApp).
+
 ## When to use
 
 - "Import this CSV of contacts into Wassenger."
@@ -46,10 +48,12 @@ CSV format (UTF-8, comma-separated):
 Flow:
 
 ```
-1. upload_whatsapp_file_from_url with the CSV URL  → file.id
-2. POST /v1/contacts/import  body: { file: <file.id>, device: <id> }
+1. upload_whatsapp_file_from_url with the CSV URL  → file.id   (MCP tool)
+2. Direct REST call — Token: <API_KEY> header:
+   POST https://api.wassenger.com/v1/contacts/import
+     body: { file: <file.id>, device: <id> }
    (Async — returns an import job id.)
-3. Poll GET /v1/contacts/import/{jobId} until status=done.
+3. Poll (REST): GET https://api.wassenger.com/v1/contacts/import/{jobId} until status=done.
 ```
 
 Custom columns survive as fields you can later use as template variables (`{{first_name}}`).
@@ -61,12 +65,16 @@ Custom columns survive as fields you can later use as template variables (`{{fir
 For each contact in the CRM:
 
 ```
-1. verifyWhatsAppNumberExists with the phone
+1. verifyWhatsAppNumberExists with phoneNumber: <phone>   (MCP tool)
    → if false, skip (don't waste a Wassenger contact slot)
-2. search_contacts by phone in Wassenger
-   - if found: PATCH /v1/contacts/{id} with the updated metadata
-   - else:     POST /v1/contacts with phone + name + labels + custom fields
-3. (Optional) manage_whatsapp_labels apply <crm-segment-label> to the resulting chat
+2. Look up the contact by phone — direct REST call, Token: <API_KEY> header:
+   GET https://api.wassenger.com/v1/contacts?phone=<phone>
+   - if found: PATCH https://api.wassenger.com/v1/contacts/{id} with updated metadata
+   - else:     POST https://api.wassenger.com/v1/contacts with phone + name + custom fields
+3. (Optional) tag the resulting chat with the CRM segment via the MCP send action:
+   search_whatsapp_chats_by_name(<phone>) → chat.wid, then
+   send_whatsapp_message action: agent, chat: <chat.wid>, agentId: <id>,
+     actions: [ { action: "labels:add", params: { labels: ["<crm-segment-label>"] } } ]
 ```
 
 Batch in chunks of ~50 to avoid rate limits. Idempotency: always search by phone first; never blindly POST.
@@ -83,29 +91,37 @@ Common CRM patterns:
 
 ### Recipe 3 — Segment & export
 
-```
-get_contacts with filter:
-  - labels: ["vip"]
-  - country: "ES"
-  - lastInboundAfter: "2026-04-01"
-  → results
-```
-
-Export to CSV for back-office use:
+There is no contacts MCP tool — segment with the REST `/contacts` list endpoint (direct call, `Token: <API_KEY>` header), passing filters as query params:
 
 ```
-export_contacts with filter + format=csv  → file URL (signed, time-limited)
+# Direct REST call — Token: <API_KEY> header
+GET https://api.wassenger.com/v1/contacts?labels=vip&country=ES&lastInboundAfter=2026-04-01
+  → results (paginated)
+```
+
+Export to CSV for back-office use (also REST — the list endpoint supports a CSV format):
+
+```
+# Direct REST call — Token: <API_KEY> header
+GET https://api.wassenger.com/v1/contacts?labels=vip&country=ES&format=csv
+  → CSV payload (stream/save it yourself)
 ```
 
 Useful for mailing lists outside WhatsApp, CRM cleanup, BI dashboards, GDPR data-export requests.
 
 ### Recipe 4 — Search
 
+Two ways, depending on what you have:
+
 ```
-search_contacts with query="marta"  → matches name OR phone substring
+# A) Find a chat (and its embedded chat.contact) by name — MCP tool:
+search_whatsapp_chats_by_name with query: "marta"
+
+# B) Search the contact directory itself — direct REST call, Token: <API_KEY> header:
+GET https://api.wassenger.com/v1/contacts?search=marta   → name OR phone matches
 ```
 
-For exact phone lookup, prefer the `phone=` filter on `get_contacts` — faster than search and returns the canonical record.
+For an exact phone lookup, prefer the `phone=` filter on the REST endpoint (`GET …/v1/contacts?phone=<phone>`) — faster than a text search and returns the canonical record.
 
 ### Recipe 5 — Validate a phone before sending
 
@@ -113,9 +129,8 @@ The cheapest sanity check before any outbound message to a new contact:
 
 ```
 verifyWhatsAppNumberExists
-  - device: <id>
-  - phone: "+34600111222"
-  → { exists: true|false, normalized: "+34600111222" }
+  - phoneNumber: "+34600111222"   # E.164. This tool takes ONLY phoneNumber — no device.
+  → whether the number is on WhatsApp (+ the canonical international format)
 ```
 
 Run this **before** the first message to:
@@ -129,7 +144,8 @@ Run this **before** the first message to:
 Wassenger stores arbitrary custom fields on contacts. Use them as template variables:
 
 ```
-PATCH /v1/contacts/{id}  body: {
+# Direct REST call — Token: <API_KEY> header
+PATCH https://api.wassenger.com/v1/contacts/{id}  body: {
   customFields: {
     plan_tier: "premium",
     lifetime_value: 1240,

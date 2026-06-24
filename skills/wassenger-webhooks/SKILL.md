@@ -56,6 +56,8 @@ Common event types (full list at https://app.wassenger.com/docs/#tag/Webhooks):
 
 Subscribe to the **least** you need — every event you don't filter is bandwidth and a retry-storm risk.
 
+> **Verify the exact names.** Confirm the precise event-name strings (and the signature header name/format used in Step 3) against the live Webhooks reference at https://app.wassenger.com/docs/#tag/Webhooks before hardcoding them — they can differ from the examples here.
+
 ## Step 2 — Subscribe
 
 ```bash
@@ -140,15 +142,17 @@ Respond with **HTTP 2xx within 10 seconds**. Wassenger considers anything else (
 
 ```
 on event: message:in:new
-  if chat.messageCount == 1 (first ever message):
+  if first contact (this chat WID not seen before in your store):
     send_whatsapp_message
       - device: event.device
-      - phone: data.message.from
+      - action: "text"
+      - chat: data.message.chat        # the WID, e.g. "34600111222@c.us"
       - message: "Hi! Thanks for reaching out. An agent will reply within 1 hour."
+    mark chat WID as seen in your store
   ack 200
 ```
 
-Use the chat statistics endpoint or check your own DB to avoid double-firing on retries.
+Decide "first contact" from your **own store** (track which chat WIDs you've greeted), and dedupe on `data.message.id` so a webhook retry can't double-fire. Don't infer it from a per-chat message count — that field isn't a reliable first-contact signal.
 
 ### Recipe 2 — Slack alert on every reply
 
@@ -167,21 +171,27 @@ on event: message:in:new
 ```
 on event: message:in:new
   if data.message.body matches /^(STOP|UNSUBSCRIBE|BAJA)$/i:
-    manage_whatsapp_labels apply "opted-out" to data.chat.id
-    send confirmation text
+    send_whatsapp_message
+      - action: "agent"
+      - chat: data.message.chat
+      - agentId: <userId>
+      - message: "You've been unsubscribed. Reply START to opt back in."
+      - actions: [{ action: "labels:add", params: { labels: ["opted-out"] } }]
     add to suppression list in your DB
   ack 200
 ```
+
+(Applying a label is an `agent`-action side effect on the send — `manage_whatsapp_labels` is CRUD only and can't attach a label to a chat.)
 
 ### Recipe 4 — Sync delivery receipts to a CRM
 
 ```
 on event in [message:out:delivered, message:out:read, message:out:failed]:
-  PATCH /crm/messages/<message.externalRef> with status=event.type
+  PATCH /crm/messages/<message.reference> with status=event.type
   ack 200
 ```
 
-`message.externalRef` is a custom field you set when sending; store it to bridge Wassenger IDs to your CRM IDs.
+`message.reference` is the custom tracking ID you set on the send (`send_whatsapp_message`'s `reference` parameter), echoed back on the message; store it to bridge Wassenger IDs to your CRM IDs.
 
 ### Recipe 5 — Local dev with ngrok
 

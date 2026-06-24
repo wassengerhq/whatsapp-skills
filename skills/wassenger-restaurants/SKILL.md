@@ -61,19 +61,24 @@ The single highest-ROI restaurant recipe. No-show rates drop from 15-20% to <5% 
 ```
 on booking.created:
   schedule send_whatsapp_message at booking.start - 24h:
-    template "reservation_reminder_24h"
-    variables: [name, time, party_size]
-    buttons:
-      - "✅ Confirmar"   → on reply, mark booking confirmed
-      - "❌ Cancelar"    → on reply, free the slot + waitlist notification
-      - "✏️ Cambiar"    → start re-booking flow
+    action: template
+    template:
+      name: "reservation_reminder_24h"
+      body: [ {name:"1", value:name}, {name:"2", value:time}, {name:"3", value:party_size} ]
+    # The Confirmar / Cancelar / Cambiar buttons are part of the APPROVED template
+    # (defined at template-creation time). On reply, branch on the button reply:
+    #   "✅ Confirmar" → mark booking confirmed
+    #   "❌ Cancelar"  → free the slot + waitlist notification (Recipe 4)
+    #   "✏️ Cambiar"   → start re-booking flow
 
   schedule send_whatsapp_message at booking.start - 2h:
-    template "reservation_reminder_2h"
-    variables: [name, time, address, googleMapsLink]
+    action: template
+    template:
+      name: "reservation_reminder_2h"
+      body: [ {name:"1", value:name}, {name:"2", value:time}, {name:"3", value:address}, {name:"4", value:googleMapsLink} ]
 ```
 
-The 24h reminder catches forgetfulness; the 2h one catches lost intent (raining, plans changed).
+The 24h reminder catches forgetfulness; the 2h one catches lost intent (raining, plans changed). Buttons (quick-reply or URL) are defined and approved when you create the template — at send time you only reference the approved template and, for dynamic buttons, fill their values via `template.button[]`.
 
 ### Recipe 3 — Share menu
 

@@ -115,6 +115,8 @@ Measure **incremental revenue** vs control group (10% holdout, no winback messag
    "Hi {{name}}, share {{brand}} with friends! Your code: {{REFCODE}}
     Each friend gets €10 off. You earn €10 when they buy."
    button: "Share on WhatsApp" → opens wa.me with prefilled message
+   # NOTE: a wa.me link is a client-side share (the customer's own WhatsApp opens
+   # with text pre-filled) — it is NOT an API send and does not go through Wassenger.
 
 3. on new_order with referral code:
    credit_referrer(REFCODE.owner, €10)

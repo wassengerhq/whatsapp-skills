@@ -1,6 +1,6 @@
 ---
 name: wassenger-team
-description: Manage the team of human agents who work in your Wassenger WhatsApp inbox — invite new members, set roles (admin / agent / readonly), grant or revoke access to specific WhatsApp devices, onboard whole groups at once, offboard a leaver safely (revoke + reassign their open chats), and audit who has access to what. Use when the user is adding staff, removing staff, changing permissions, or worried about who can do what across their Wassenger account.
+description: Manage the team of human agents who work in your Wassenger WhatsApp inbox — invite new members, set roles (admin / supervisor / agent), grant or revoke access to specific WhatsApp devices, onboard whole groups at once, offboard a leaver safely (revoke + reassign their open chats), and audit who has access to what. Use when the user is adding staff, removing staff, changing permissions, or worried about who can do what across their Wassenger account.
 license: MIT
 metadata:
   author: Wassenger
@@ -19,7 +19,7 @@ Run the human side of the inbox: who's on the team, what they're allowed to do, 
 - *"Give Marta access to our support number, but not to the sales one."*
 - *"What permissions does the team have? Who can delete chats?"*
 - *"Pedro is leaving — revoke his access and move his open chats to me."*
-- *"Invite the whole new agency team (10 people) and give them readonly access to start."*
+- *"Invite the whole new agency team (10 people) as agents and scope each one to a single device to start."*
 
 For assigning chats *to* agents who already exist, see `wassenger-inbox` (manual) or `wassenger-routing` (auto). For department setup, see `wassenger-routing`. For labels they can apply, see `wassenger-labels`.
 
@@ -34,8 +34,10 @@ For assigning chats *to* agents who already exist, see `wassenger-inbox` (manual
 | Role | Can read chats | Can send / reply | Can manage labels & dept | Can manage team | Can manage account |
 |---|:-:|:-:|:-:|:-:|:-:|
 | **Admin** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Agent** | ✓ | ✓ | ✓ | – | – |
-| **Readonly** | ✓ | – | – | – | – |
+| **Supervisor** | ✓ | ✓ | ✓ | ✓ | – |
+| **Agent** | ✓ | ✓ | – | – | – |
+
+There is **no `readonly` role**. To take away an agent's ability to send/reply (or otherwise restrict them), narrow their `permissions` / `devicePermissions` rather than reaching for a role.
 
 Roles are **per account**. **Device access** is a second layer on top: even an Agent can be limited to specific WhatsApp numbers (devices). A salesperson can have access to `+34 600 SALES` but not `+34 600 SUPPORT`.
 
@@ -47,16 +49,17 @@ Roles are **per account**. **Device access** is a second layer on top: even an A
 
 ```
 1. manage_whatsapp_team
-   - operation: create
+   - action: create
    - email: "pedro@example.com"
    - name: "Pedro García"
    - role: agent
-   → member.id, invitation email sent
+   → user.id, invitation email sent
 
 2. manage_whatsapp_team
-   - operation: grant-device-access
-   - member: <member.id>
+   - action: grant_access
    - device: <sales-device-id>
+   - userIds: [<user.id>]
+   - deviceRole: agent
 ```
 
 Pedro receives an email invitation. Until he accepts and sets a password, his status is `pending`. After acceptance: `active`.
@@ -67,11 +70,15 @@ Pedro receives an email invitation. Until he accepts and sets a password, his st
 
 ```
 For each row in CSV:
-  1. manage_whatsapp_team create with email + name + role
+  1. manage_whatsapp_team action: create with email + name + role  → user.id
   2. For each device they should access:
-       grant-device-access(member.id, device.id)
+       manage_whatsapp_team action: grant_access
+         - device: <device.id>
+         - userIds: [<user.id>]
+         - deviceRole: agent
   3. (Optional) assign to a department — see wassenger-routing
-  4. (Optional) apply a label like "onboarding:2026-q2"
+  4. (Optional) tag the resulting chats with a label like "onboarding:2026-q2"
+     via send_whatsapp_message action: agent (labels:add) — see wassenger-labels
 ```
 
 Batch carefully — Wassenger sends an email per invitation. Send no more than ~20 at a time to avoid the recipients' inboxes flagging the burst.
@@ -81,14 +88,22 @@ Batch carefully — Wassenger sends an email per invitation. Send no more than ~
 > "Marta should answer support but not sales."
 
 ```
-1. manage_whatsapp_team search "Marta" → member.id
+1. manage_whatsapp_team action: search, query: "Marta" → user.id
 
 2. List current device access:
-   GET /v1/team/{member.id}/devices
+   manage_whatsapp_team
+     - action: get
+     - userId: <user.id>
+     - includeDevices: true
 
 3. Adjust:
-   - grant-device-access for support device
-   - revoke-device-access for sales device (if currently granted)
+   - manage_whatsapp_team action: grant_access
+       - device: <support-device-id>
+       - userIds: [<user.id>]
+       - deviceRole: agent
+   - manage_whatsapp_team action: revoke_access
+       - device: <sales-device-id>
+       - userIds: [<user.id>]   (if currently granted)
 ```
 
 Device access is **additive**: if a member has no grant for a device, they cannot see chats on it. Don't accidentally grant access to all devices when you mean to scope.
@@ -99,15 +114,15 @@ Device access is **additive**: if a member has no grant for a device, they canno
 
 ```
 manage_whatsapp_team
-  - operation: update
-  - member: <marta.id>
-  - role: admin   (or: agent | readonly)
+  - action: update
+  - userId: <marta.id>
+  - role: admin   (or: supervisor | agent)
 ```
 
 Then to revert:
 
 ```
-manage_whatsapp_team update with role: agent
+manage_whatsapp_team action: update with userId + role: agent
 ```
 
 Keep **at least one admin** at all times — Wassenger refuses to demote the last admin.
@@ -118,20 +133,33 @@ Keep **at least one admin** at all times — Wassenger refuses to demote the las
 
 ```
 1. List Pedro's open chats:
-   get_whatsapp_assigned_chats with assignedTo=<pedro.id> + status=active
+   get_whatsapp_chats
+     - action: assigned
+     - agentId: <pedro.id>
+     - status: ["active"]
    → array of chats
 
-2. For each chat:
-   PATCH /v1/chats/{wid}  body: { assignedTo: <marta.id> }
+2. For each chat, reassign to Marta:
+   send_whatsapp_message
+     - action: agent
+     - chat: <chat.wid>
+     - agentId: <marta.id>
+     - actions: [ { action: "chat:assign", params: { agent: <marta.id> } } ]
    (Optional) post an internal note: "Reassigned from Pedro on 2026-05-27"
 
-3. Revoke device access:
-   manage_whatsapp_team revoke-device-access for every device Pedro had
+3. Revoke device access (one call per device, or batch userIds):
+   manage_whatsapp_team
+     - action: revoke_access
+     - device: <device.id>
+     - userIds: [<pedro.id>]
 
 4. Disable the account:
-   manage_whatsapp_team update with status: disabled
-   (Or: delete if you don't need their audit trail.)
+   manage_whatsapp_team action: update with userId: <pedro.id>, status: disabled
+   (Or: action: delete — which can reassign/resolve/unassign Pedro's open chats
+    in one shot via chatAction + reassignTo — if you don't need their audit trail.)
 ```
+
+> **Shortcut:** `manage_whatsapp_team action: delete` with `userId` accepts `chatAction` (`reassign` / `resolve` / `unassign`) and `reassignTo`, so it can offload a leaver's open chats during deletion without the manual loop in step 2.
 
 **Don't delete a member immediately** — disable first. If a question comes up later ("who closed this chat?"), the audit trail still works.
 
@@ -141,11 +169,11 @@ Keep **at least one admin** at all times — Wassenger refuses to demote the las
 
 ```
 1. List team:
-   manage_whatsapp_team search ""  → all members
+   manage_whatsapp_team action: search, query: ""  → all members
 
 2. For each member:
-   GET /v1/team/{member.id}/devices
-   → array of devices they can access
+   manage_whatsapp_team action: get, userId: <user.id>, includeDevices: true
+   → the devices they can access
 
 3. Render a matrix:
    |        | Sales | Support | Marketing |
@@ -163,10 +191,12 @@ Run this quarterly. Permission creep is real — agents accumulate access over t
 
 ```
 For each member:
-  count = get_whatsapp_assigned_chats(
-            assignedTo=member.id,
-            status=resolved,
-            dateRange=this_week
+  count = get_whatsapp_chats(
+            action: assigned,
+            agentId: member.id,
+            status: ["resolved"],
+            fromDate: <monday ISO>,
+            toDate: <now ISO>
           ).length
 Sort desc, render table.
 ```

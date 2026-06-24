@@ -3,8 +3,8 @@
 Turn `owner.agent` IDs into names once:
 
 ```
-roster = manage_whatsapp_team(operation=search, query="")
-name = { m.id: m.displayName for m in roster }
+roster = manage_whatsapp_team(action=search, query="")
+name = { m.id: m.name for m in roster }
 ```
 
 ## Workload (current)

@@ -38,11 +38,14 @@ For pure customer support after a delivery problem, see `wassenger-customer-supp
 
 ```
 on shipment.dispatched (from TMS / carrier API):
-  send template "delivery_dispatched"
-    variables: [recipientName, trackingNumber, etaWindow, carrierName, trackingUrl]
-    buttons:
-      - "📍 Cambiar dirección"  → start change-address flow
-      - "🕐 Reprogramar"        → start reschedule flow
+  send_whatsapp_message
+    - action: template
+    - template:
+        name: "delivery_dispatched"
+        body: [ {name:"1", value:recipientName}, {name:"2", value:trackingNumber}, {name:"3", value:etaWindow}, {name:"4", value:carrierName} ]
+        button: [ {type:url, position:0, name:"1", value:trackingUrlSuffix} ]
+    # "Cambiar dirección" / "Reprogramar" quick-reply buttons are part of the
+    # APPROVED template; on reply, branch to the change-address / reschedule flow.
   label chat "shipment:{{trackingNumber}}"
 ```
 
@@ -111,12 +114,16 @@ Save POD URL + timestamp + GPS coords against the shipment record for dispute re
 
 ```
 on shipment.failed (driver couldn't deliver):
-  send template "delivery_failed"
-    variables: [recipientName, attemptCount, nextAttempt]
-    buttons:
-      - "📅 Reprogramar"   → ask for new window
-      - "📍 Punto de recogida"  → send nearest pickup location
-      - "🔄 Cambiar dirección" → start address-change flow
+  send_whatsapp_message
+    - action: template
+    - template:
+        name: "delivery_failed"
+        body: [ {name:"1", value:recipientName}, {name:"2", value:attemptCount}, {name:"3", value:nextAttempt} ]
+    # Reprogramar / Punto de recogida / Cambiar dirección buttons are defined in
+    # the APPROVED template; on reply, branch:
+    #   "📅 Reprogramar"        → ask for new window
+    #   "📍 Punto de recogida"  → send nearest pickup location
+    #   "🔄 Cambiar dirección"  → start address-change flow
 
 # On reply with new window:
   parse_new_date_time(reply)
@@ -157,3 +164,4 @@ This one recipe alone reduces failed deliveries by 10-20% in urban areas.
 - `wassenger-contacts` — managing the recipient database.
 - `wassenger-customer-support` — for the post-failed-delivery support cases.
 - `wassenger-ecommerce` — the merchant-side counterpart (Recipe 3 in that skill).
+- Reference implementation: https://github.com/wassengerhq/whatsapp-chatgpt-bot

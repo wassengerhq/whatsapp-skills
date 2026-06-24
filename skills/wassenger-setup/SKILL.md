@@ -36,7 +36,7 @@ If the user already has the MCP working and just wants to send a message, route 
 Direct the user to https://app.wassenger.com/developers/apikeys?ref=skills&utm_source=skill_setup.
 
 - If they have no account: create one at https://app.wassenger.com.
-- Click "Create API key", copy the value (30-200 characters, starts with random hex).
+- Click "Create API key" and copy the value (a long opaque token — copy it exactly as shown; don't assume a particular prefix or format).
 - Store it as `WASSENGER_API_KEY` in their shell profile (`~/.zshrc`, `~/.bashrc`):
 
 ```bash
@@ -124,7 +124,7 @@ Then send a test message:
 Send "Hello from Claude" to my own WhatsApp number (+34...) using device <device-id>.
 ```
 
-The agent calls `send_whatsapp_message`. Check WhatsApp on the phone — the message should arrive within a few seconds.
+The agent calls `send_whatsapp_message` — note the recipient is addressed as a chat WID (e.g. `34600111222@c.us`), not a `phone` field. Check WhatsApp on the phone — the message should arrive within a few seconds.
 
 If it fails, common causes:
 

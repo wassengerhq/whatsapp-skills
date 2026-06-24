@@ -79,13 +79,10 @@ await fetch('https://api.wassenger.com/v1/messages', {
     template: {
       name: 'reservation_reminder',
       language: 'es',
-      components: [{
-        type: 'body',
-        parameters: [
-          { type: 'text', text: 'Pablo' },
-          { type: 'text', text: '20:00' }
-        ]
-      }]
+      body: [
+        { name: '1', value: 'Pablo' },
+        { name: '2', value: '20:00' }
+      ]
     }
   })
 })

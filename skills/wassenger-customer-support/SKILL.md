@@ -70,7 +70,7 @@ on message:in:new where chat.messageCount == 1:
   ack 200
 ```
 
-Use your own DB to track "first message" — Wassenger's `messageCount` may include outbound messages, depending on how the chat was created.
+Use your own DB to track "first message" — `chat.messageCount` is not a reliable first-contact signal (it may include outbound messages, depending on how the chat was created). For "is this the first inbound?" logic, track first-inbound in your own DB, or fall back to `chat.lastInboundAt` (which exists) being unset before this event.
 
 ### Recipe 2 — Business hours + holiday calendar
 
@@ -125,7 +125,7 @@ every 1 min:
   pending_chats = get_whatsapp_chats_by_status(active) where assignedTo is null
   for chat in pending_chats:
     sla = sla_for(chat.labels)
-    age = now - chat.firstInboundAt
+    age = now - chat.firstInboundAt   # see caveat below
     if age > sla.first_response * 0.8 and not chat.sla_warned:
       ping_team_in_slack("⚠️ Chat with {customer} is {age}min old, SLA breach in {remaining}min")
       mark chat.sla_warned = true
@@ -133,6 +133,8 @@ every 1 min:
       ping_team_in_slack("🚨 SLA BREACHED on chat with {customer} ({age}min)")
       label chat "sla-breach"
 ```
+
+> **Field caveat:** `chat.firstInboundAt` is not a reliable field — for first-contact / SLA-start logic, use `chat.lastInboundAt` (which exists, returned by `get_whatsapp_chats action:by_id`) or stamp the first-inbound time in your own DB on the `message:in:new` webhook. Don't assume `firstInboundAt` or `messageCount` are populated.
 
 ### Recipe 5 — FAQ deflection
 
@@ -185,7 +187,7 @@ When agent marks chat as resolved:
      if rating <= 2: alert team lead for follow-up
 ```
 
-Don't send the CSAT request more than once per chat. Track sent-at timestamp.
+Don't send the CSAT request more than once per chat. Track sent-at timestamp. This loop must respect the auto-reply suppression from Anti-patterns ("Auto-replying after the first message of a thread") — gate the CSAT send on bot-still-active / no-human-in-thread so the survey and a first-contact greeting don't double-fire on the same inbound.
 
 ### Recipe 8 — Reporting
 

@@ -53,27 +53,34 @@ Pick a small set of namespaces (5-8) and **document them** somewhere your agents
 
 ```
 manage_whatsapp_labels
-  - operation: create
+  - action: create
   - name: "segment:vip"
-  - color: "#f1c40f"        # any hex; Wassenger shows it in the console
+  - color: "gold"           # palette name, not hex (see the palette below)
   - description: "Lifetime value > €5,000 OR explicitly named premium"
   → label.id
 ```
 
 `create` is **idempotent** by name — if `segment:vip` already exists, you get the existing one back instead of an error.
 
+**Color is a fixed palette, not a hex value.** Pick one of: `ruby`, `tomato`, `orange`, `sunflower`, `bubble`, `rose`, `poppy`, `rouge`, `raspberry`, `purple`, `lavender`, `violet`, `pool`, `emerald`, `kelly`, `apple`, `turquoise`, `aqua`, `gold`, `latte`, `cocoa`, `iron`.
+
 ### Recipe 2 — Apply a label to a chat
 
 > "Tag the chat with +34 600 111 222 as VIP."
 
+`manage_whatsapp_labels` is **CRUD only** — it cannot attach a label to a chat. To tag a chat you use `send_whatsapp_message` with `action: agent` and a `labels:add` side-effect (this is the same call that can reply, assign, or resolve in one shot):
+
 ```
 1. search_whatsapp_chats_by_name "+34600111222"  → chat.wid
    (or use the chat WID directly if you have it)
-2. manage_whatsapp_labels
-   - operation: apply
-   - label: <label.id> (or by name)
+2. send_whatsapp_message
+   - action: agent
    - chat: <chat.wid>
+   - agentId: <your-agent-id>
+   - actions: [ { action: "labels:add", params: { labels: ["segment:vip"] } } ]
 ```
+
+You attach labels **by name** here, not by ID. Add `message` if you also want to send text in the same call; omit it to tag silently.
 
 ### Recipe 3 — Bulk-apply by criteria
 
@@ -81,14 +88,21 @@ manage_whatsapp_labels
 
 ```
 1. Ensure label exists:
-   manage_whatsapp_labels create "segment:es"  → label.id
+   manage_whatsapp_labels action: create, name: "segment:es"  → label.id
 
-2. Get matching contacts:
-   get_contacts with filter { country: "ES" }  → contacts
+2. Get matching contacts. The MCP has no general contacts tool, so pull them
+   from the REST Contacts API (direct call, not an MCP tool):
+   GET https://api.wassenger.com/v1/contacts?country=ES
+     Header: Token: <API_KEY>
+   → contacts
 
 3. For each contact:
    - find their chat: search_whatsapp_chats_by_name(contact.phone) → chat.wid
-   - manage_whatsapp_labels apply (label.id, chat.wid)
+   - send_whatsapp_message
+       - action: agent
+       - chat: <chat.wid>
+       - agentId: <your-agent-id>
+       - actions: [ { action: "labels:add", params: { labels: ["segment:es"] } } ]
 ```
 
 For >100 contacts, batch in groups of 50 to stay polite with the API. Track progress in your own DB so you can resume on crash.
@@ -97,60 +111,83 @@ For >100 contacts, batch in groups of 50 to stay polite with the API. Track prog
 
 > "Show me every chat tagged 'segment:vip'."
 
-```
-get_whatsapp_chats with filter { labels: [<label.id>] }
-  → array of chats
+`get_whatsapp_chats` has **no `labels` filter**. Pull the chats you care about, then filter on each `chat.labels[]` in the agent:
 
-# Multiple labels (AND semantics):
-get_whatsapp_chats with filter { labels: [<vip.id>, <intent:billing.id>] }
+```
+chats = get_whatsapp_chats(action: by_status, status: ["active"])
+vip   = chats.filter(c => c.labels?.some(l => l.name === "segment:vip"))
+
+# Multiple labels (AND semantics) — still client-side:
+both = chats.filter(c => {
+  const names = (c.labels || []).map(l => l.name)
+  return names.includes("segment:vip") && names.includes("intent:billing")
+})
 ```
 
-Useful for views like "all VIP customers waiting on billing" — combine with `status: active` for a daily attention list.
+Useful for views like "all VIP customers waiting on billing" — start from `action: by_status` with `status: ["active"]` so you only scan the daily attention list. For large accounts, page through with `limit`/`sortBy` rather than pulling everything at once (or query the REST `/chats` endpoint with `Token:` header).
 
 ### Recipe 5 — Remove a label
 
 > "This chat isn't actually VIP, remove that tag."
 
+Detaching a label is also a `send_whatsapp_message` `action: agent` side-effect — `labels:remove` (use `labels:set` to replace the whole set at once):
+
 ```
-manage_whatsapp_labels
-  - operation: unapply
-  - label: <label.id>
+send_whatsapp_message
+  - action: agent
   - chat: <chat.wid>
+  - agentId: <your-agent-id>
+  - actions: [ { action: "labels:remove", params: { labels: ["segment:vip"] } } ]
 ```
 
-Don't delete the label itself unless nobody is using it. To remove a label from many chats first, then delete:
+Don't delete the label itself unless nobody is using it. To detach a label from many chats first, then delete the label:
 
 ```
-1. For each chat with the label: unapply
-2. manage_whatsapp_labels delete <label.id>
+1. For each chat with the label: send_whatsapp_message action: agent
+   with actions: [ { action: "labels:remove", params: { labels: ["segment:vip"] } } ]
+2. manage_whatsapp_labels
+   - action: delete
+   - name: "segment:vip"
+   - confirmDeletion: true
 ```
 
-### Recipe 6 — Rename a label
+### Recipe 6 — Recolor / re-describe a label (and how to "rename")
 
-The API doesn't expose a rename in-place because changing a label's `name` is technically an update. The clean version:
+`update` is keyed by the label `name` and only changes its `color` / `description` — there is **no in-place rename** (and `update` requires a `description`):
 
 ```
 manage_whatsapp_labels
-  - operation: update
-  - label: <label.id>
-  - name: "priority:high"   # new name
-  - color: "#e74c3c"        # optionally change color
+  - action: update
+  - name: "priority:high"            # identifies the existing label
+  - color: "tomato"                  # new palette color
+  - description: "Needs a reply within 1h"   # required on update
 ```
 
-All chats keep their tag (label ID is stable). Useful when you decide your taxonomy needs to shift (e.g., from flat `urgent` → namespaced `priority:high`).
+To actually change the *text* of a label (e.g. shift from flat `urgent` → namespaced `priority:high`), there's no atomic rename. Do it in three steps:
+
+```
+1. manage_whatsapp_labels action: create, name: "priority:high", color: "tomato"
+2. For every chat tagged "urgent": send_whatsapp_message action: agent with
+   actions: [ { action: "labels:set", params: { labels: ["priority:high", …keep the rest] } } ]
+3. manage_whatsapp_labels action: delete, name: "urgent", confirmDeletion: true
+```
 
 ### Recipe 7 — Reporting
 
 > "How many chats are tagged with each label this month?"
 
+There's no `labels` filter on `get_whatsapp_chats`, so count client-side: pull the period's chats once and tally each `chat.labels[]`.
+
 ```
 1. List all labels:
-   manage_whatsapp_labels list  → labels
+   manage_whatsapp_labels action: list  → labels
 
-2. For each label:
-   count = get_whatsapp_chats(
-     filter: { labels: [label.id], dateFrom: month_start }
-   ).length
+2. Pull the period's chats once, then tally per label in the agent:
+   chats = get_whatsapp_chats(action: by_date_range,
+                              fromDate: month_start, toDate: now)
+   for label in labels:
+     count[label.name] = chats.filter(c =>
+       (c.labels || []).some(l => l.name === label.name)).length
 
 3. Render:
    | Label                  | Count | Color |

@@ -51,8 +51,9 @@ on message:in:new with body matching listing URL or reference (REF-123):
       - media: { url: property.heroImage }
     # Follow-up message with floor plan + video
     send_whatsapp_message with deliverAt: now + 30s
+      - chat: lead.wid          # e.g. 34600111222@c.us
       - media: { url: property.floorPlan }
-      - caption: "Aquí tienes el plano. Si quieres ver vídeo o agendar una visita, dime."
+      - message: "Aquí tienes el plano. Si quieres ver vídeo o agendar una visita, dime."   # caption goes in `message`
     label chat "interested:{{property.id}}"
     CRM.createInquiry(property=property.id, lead=lead.phone)
 ```

@@ -6,7 +6,7 @@
 |---|---|---|
 | Method | HTTP Basic | API key header |
 | Credentials | `AccountSid` : `AuthToken` | single API key |
-| Header | `Authorization: Basic base64(Sid:Token)` | `Token: <API_KEY>` (or `Authorization: Bearer <key>`) |
+| Header | `Authorization: Basic base64(Sid:Token)` | `Token: <API_KEY>` |
 | Get it at | Twilio Console | https://app.wassenger.com/developers/apikeys |
 
 ## Send a message — `POST /Messages.json` → `POST /v1/messages`
@@ -20,7 +20,7 @@
 | (upload first) | `media: { file }` | use `upload_whatsapp_file_from_url` → `file.id` |
 | `MediaUrl` + caption in `Body` | `media: { url }` + `caption` | Wassenger separates caption |
 | `ContentSid` | `template.name` + `template.language` | map opaque SID → Meta template identity |
-| `ContentVariables` `{"1":..}` | `template.components[].parameters[]` | positional → typed params |
+| `ContentVariables` `{"1":..}` | `template.body: [{ name, value }]` | positional key → `name`, value → `value` |
 | `ScheduleType=fixed` + `SendAt` | `deliverAt` | ISO 8601; no Messaging Service needed |
 | `MessagingServiceSid` | (n/a) | Wassenger has no messaging-service concept; use `device` |
 | `StatusCallback` | webhook `message:out:*` | subscribe once, not per message |
@@ -32,9 +32,9 @@
 | Twilio | Wassenger |
 |---|---|
 | Built in Content Template Builder, referenced by `ContentSid` | Referenced by Meta `name` + `language` |
-| `ContentVariables` JSON, positional keys `"1"`,`"2"` | `components: [{type:"body", parameters:[{type:"text",text:…}]}]` |
-| Header media via Content config | `components: [{type:"header", parameters:[{type:"image", image:{link}}]}]` |
-| Buttons via Content config | `components: [{type:"button", sub_type:"quick_reply", index:"0", parameters:[…]}]` |
+| `ContentVariables` JSON, positional keys `"1"`,`"2"` | `body: [{ name:"1", value:"…" }, { name:"2", value:"…" }]` |
+| Header media via Content config | `header: { media: { url:"…", type:"image" } }` (text header: `header: { text: { name:"1", value:"…" } }`) |
+| Buttons via Content config | `button: [{ type:"url", position:0, name:"1", value:"abc123" }]` (`type`: `quick_reply`/`url`/`copy_code`/`mpm`/`flow`) |
 | List/approve in Console | `list_whatsapp_templates` (status must be `APPROVED`) |
 
 Templates already approved on the WABA you migrate **carry over** — you map identifiers, you do not re-submit.
@@ -43,14 +43,14 @@ Templates already approved on the WABA you migrate **carry over** — you map id
 
 | Twilio (form field) | Wassenger (JSON path) |
 |---|---|
-| `MessageSid` | `data.id` |
-| `From` (`whatsapp:+E164`) | `data.fromNumber` (plain `+E164`) |
-| `To` | `data.toNumber` / `data.device` |
-| `Body` | `data.body` |
+| `MessageSid` | `data.message.id` |
+| `From` (`whatsapp:+E164`) | `data.message.from` (plain `E164`, no prefix) |
+| `To` | `data.message.to` / top-level `device` |
+| `Body` | `data.message.body` |
 | `NumMedia` / `MediaUrl0` | `data.media` (url / file ref) |
 | `MediaContentType0` | `data.media.mimetype` |
 | `ProfileName` | `data.chat.contact.name` |
-| `WaId` | `data.chat.contact.wid` |
+| `WaId` | `data.chat.contact.phone` |
 | (n/a) | `event` = `message:in:new` |
 
 ## Status values
