@@ -14,10 +14,10 @@
       "name": "wassenger-skills",
       "displayName": "Wassenger Skills",
       "description": "22 Agent Skills for automating WhatsApp Business on the official WABA — team setup with roles and per-device permissions, inbox triage with notes and archive, messaging with template handling, bulk campaigns, real-time webhooks, contacts management, label CRUD with namespacing, auto-assignment routing, canned quick replies, rule-based auto-replies, analytics and reporting, plus 7 industry playbooks (e-commerce, sales, customer support, real estate, restaurants, logistics, marketing) and migration guides from Twilio and Wati.",
-      "source": "github:wassengerhq/wassenger-skills",
+      "source": "github:wassengerhq/whatsapp-skills",
       "version": "0.1.0",
       "license": "MIT",
-      "homepage": "https://github.com/wassengerhq/wassenger-skills",
+      "homepage": "https://github.com/wassengerhq/whatsapp-skills",
       "tags": [
         "whatsapp",
         "whatsapp-business",

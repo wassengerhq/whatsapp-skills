@@ -23,14 +23,14 @@ Pick the method that matches your agent — each installs the 22 skills and regi
 **Claude Code** (plugin):
 
 ```text
-/plugin marketplace add wassengerhq/wassenger-skills
+/plugin marketplace add wassengerhq/whatsapp-skills
 /plugin install wassenger-skills@wassengerhq
 ```
 
 **Any agent** (via the open [Agent Skills](https://agentskills.io) CLI):
 
 ```bash
-npx skills add wassengerhq/wassenger-skills
+npx skills add wassengerhq/whatsapp-skills
 ```
 
 **Guided setup** — interactive CLI that asks for your API key, validates it, auto-detects your agent, installs the skills, and wires up the MCP server:
@@ -59,7 +59,7 @@ You'll need a Wassenger API key — get one at [app.wassenger.com/developers](ht
 | `wassenger-campaigns` | Bulk broadcasts: segmentation, scheduling, delivery tracking, opt-out. |
 | `wassenger-webhooks` | Subscribe to real-time events with HMAC signature verification and retries. |
 | `wassenger-contacts` | CSV import, CRM sync, segmentation, export, phone validation. |
-| `wassenger-team` | Invite agents, set roles (admin / agent / readonly), grant per-device access, safe offboarding. |
+| `wassenger-team` | Invite agents, set roles (admin / supervisor / agent), grant per-device access, safe offboarding. |
 | `wassenger-labels` | Full label CRUD with the `namespace:value` convention, bulk-apply, query, reporting. |
 | `wassenger-routing` | Auto-assignment (round-robin, language-based, skills-based), departments, escalation, fallback. |
 | `wassenger-quick-replies` | Canned-response library — shortcuts (`/shipping`), media, visibility, bulk import. |

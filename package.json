@@ -18,13 +18,13 @@
     "chatbot",
     "wa-business"
   ],
-  "homepage": "https://github.com/wassengerhq/wassenger-skills",
+  "homepage": "https://github.com/wassengerhq/whatsapp-skills",
   "bugs": {
-    "url": "https://github.com/wassengerhq/wassenger-skills/issues"
+    "url": "https://github.com/wassengerhq/whatsapp-skills/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wassengerhq/wassenger-skills.git"
+    "url": "git+https://github.com/wassengerhq/whatsapp-skills.git"
   },
   "license": "MIT",
   "author": "Wassenger <support@wassenger.com> (https://wassenger.com)",
