@@ -10,7 +10,7 @@
 
 ## What is this?
 
-A pack of **22 ready-to-install Agent Skills** that teach your AI agent how to automate every aspect of WhatsApp Business with Wassenger — onboarding a team, organizing the inbox, sending messages, running campaigns, configuring auto-replies, reporting on inbox analytics, plus seven industry-specific playbooks and migration guides from Twilio and Wati. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp Business API rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
+A pack of **23 ready-to-install Agent Skills** that teach your AI agent how to automate every aspect of WhatsApp Business with Wassenger — onboarding a team, organizing the inbox, sending messages, running campaigns, configuring auto-replies, standing up an AI agent that answers customers (with a human handoff), reporting on inbox analytics, plus seven industry-specific playbooks and migration guides from Twilio and Wati. You describe the outcome in plain English. The agent picks the right Wassenger tools, respects the WhatsApp Business API rules (24-hour window, templates, rate limits), and runs the workflow end-to-end.
 
 Scoped to the **official WhatsApp Business API** — built for production deployments, not legacy QR-paired devices.
 
@@ -18,7 +18,7 @@ Built on top of [`wassengerhq/mcp-wassenger`](https://github.com/wassengerhq/mcp
 
 ## Install
 
-Pick the method that matches your agent — each installs the 22 skills and registers the Wassenger MCP server.
+Pick the method that matches your agent — each installs the 23 skills and registers the Wassenger MCP server.
 
 **Claude Code** (plugin):
 
@@ -50,7 +50,7 @@ You'll need a Wassenger API key — get one at [app.wassenger.com/developers](ht
 | `wassenger-setup` | Walks the user through getting an API key, connecting a WhatsApp number, and validating the install. |
 | `wassenger-mcp` | Reference for the Wassenger MCP server — every tool, every parameter, every transport option. |
 
-### Capabilities (11) — reusable building blocks
+### Capabilities (12) — reusable building blocks
 
 | Skill | What it does |
 |---|---|
@@ -65,6 +65,7 @@ You'll need a Wassenger API key — get one at [app.wassenger.com/developers](ht
 | `wassenger-quick-replies` | Canned-response library — shortcuts (`/shipping`), media, visibility, bulk import. |
 | `wassenger-auto-replies` | Rule-based automatic responses — welcome, out-of-hours, busy, inactive follow-up. |
 | `wassenger-analytics` | Reports & KPIs from live inbox data — status, agent workload, response/resolution time, volume, backlog, language. |
+| `wassenger-ai-agent` | Stand up an AI (LLM) agent that answers customers 24/7 — inside the 24h window, with a hard human handoff, opt-out, and a kill switch. |
 
 ### Industries (7) — outcome-focused recipes
 
